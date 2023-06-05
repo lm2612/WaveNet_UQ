@@ -18,7 +18,7 @@ class Wavenet(nn.Module):
         if use_dropout:
             dropout_rate = dropout_rate
         else:
-            dropout_rate = 1
+            dropout_rate = 0
         self.shared = nn.Sequential(
             nn.BatchNorm1d(self.n_in),     # Added by Laura, not in orig WaveNet
             nn.Linear(self.n_in, self.n_d[0]),       
