@@ -1,13 +1,7 @@
 import torch
 import torch.nn as nn
 
-def init_xavier(m):
-    if type(m) == nn.Conv2d or type(m) == nn.Linear or type(m) == nn.ConvTranspose2d:
-        nn.init.xavier_uniform_(m.weight)
-
-def count_parameters(model): 
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-                   
+from utils import init_xavier
 
 class Wavenet(nn.Module):
     def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=33, use_dropout=False, dropout_rate=0.5):
