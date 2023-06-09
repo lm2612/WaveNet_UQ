@@ -9,7 +9,7 @@ class GravityWavesDataset(Dataset):
 
     def __init__(self, data_dir, filename, npfull_out = 33, 
                  subset_time=None, transform=None, 
-                 transform_dict = {},
+                 transform_dict = {}, component="zonal",
                  ):
         """
         Sets up dataset from which you can index. Data must fit into memory, everything is
@@ -24,6 +24,7 @@ class GravityWavesDataset(Dataset):
             transform (string or None, optional): Optional transform to be applied
                 on a sample, either "minmax" or "standard" or None.
             transform_dict (dict, optional): Information needed for transform
+            component (string, optional): Either zonal or meridional.
                 
         """
         path_to_file = data_dir + filename
@@ -42,9 +43,17 @@ class GravityWavesDataset(Dataset):
 
         print(f"Full dataset has ntime={self.ntime}")
         # Get variables 
-        self.ucomp = self.ds["ucomp"]
+        if component.lower() == "zonal":
+            wind_comp = "ucomp"
+            gwf_comp = "gwfu_cgwd"
+        elif component.lower() == "meridional":
+            wind_comp = "vcomp"
+            gwf_comp = "gwfv_cgwd"
+
+        self.gwfu = self.ds[gwf_comp]
+        self.ucomp = self.ds[wind_comp]
         self.temp = self.ds["temp"]
-        self.gwfu = self.ds["gwfu_cgwd"]
+        
         if subset_time != None:
             time_start = subset_time[0]
             time_end = subset_time[1]
@@ -93,26 +102,26 @@ class GravityWavesDataset(Dataset):
             if transform.lower() == "minmax":
                 filename_min = transform_dict["filename_min"]
                 with xr.open_dataset(transform_dir + filename_min, decode_times=False ) as ds_min:
-                    self.gwfu_min = ds_min["gwfu_cgwd"].to_numpy() 
-                    self.u_min = ds_min["ucomp"].to_numpy() 
+                    self.gwfu_min = ds_min[gwf_comp].to_numpy() 
+                    self.u_min = ds_min[wind_comp].to_numpy() 
                     self.T_min = ds_min["temp"].to_numpy() 
                 
                 filename_max = transform_dict["filename_max"]
                 with xr.open_dataset(transform_dir + filename_max, decode_times=False ) as ds_max:
-                    self.gwfu_max = ds_max["gwfu_cgwd"].to_numpy() 
-                    self.u_max = ds_max["ucomp"].to_numpy() 
+                    self.gwfu_max = ds_max[gwf_comp].to_numpy() 
+                    self.u_max = ds_max[wind_comp].to_numpy() 
                     self.T_max = ds_max["temp"].to_numpy() 
             elif transform.lower() == "standard":
                 filename_mean = transform_dict["filename_mean"]
                 with xr.open_dataset(transform_dir + filename_mean, decode_times=False ) as ds_mean:
-                    self.gwfu_mean = ds_mean["gwfu_cgwd"].to_numpy() 
-                    self.u_mean = ds_mean["ucomp"].to_numpy() 
+                    self.gwfu_mean = ds_mean[gwf_comp].to_numpy() 
+                    self.u_mean = ds_mean[wind_comp].to_numpy() 
                     self.T_mean = ds_mean["temp"].to_numpy() 
                 
                 filename_sd = transform_dict["filename_sd"]
                 with xr.open_dataset(transform_dir + filename_sd, decode_times=False ) as ds_sd:
-                    self.gwfu_sd = ds_sd["gwfu_cgwd"].to_numpy() 
-                    self.u_sd = ds_sd["ucomp"].to_numpy() 
+                    self.gwfu_sd = ds_sd[gwf_comp].to_numpy() 
+                    self.u_sd = ds_sd[wind_comp].to_numpy() 
                     self.T_sd = ds_sd["temp"].to_numpy() 
             else:
                 print(f"Transform {transform} functionality does not exist")
