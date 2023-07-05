@@ -20,6 +20,8 @@ import argparse
 
 # Get run directory from argparser
 parser = argparse.ArgumentParser(description='Train wavenet')
+parser.add_argument('--component', metavar='component', type=str, default="zonal", 
+        help='directional component of gwd to predict, either zonal or meridional. Default is zonal')
 parser.add_argument('--transform', metavar='transform', type=str, default=None,
                                                    help='transform used, either minmax standard or none')
 parser.add_argument('--init_epoch', metavar='init_epoch', type=int, default=0,
@@ -41,9 +43,11 @@ parser.add_argument('--use_dropout', metavar='use_dropout', type=bool, default=F
 parser.add_argument('--dropout_rate', metavar='dropout_rate', type=float, default=0.5,
         help='dropout rate: a floating point number between 0 and 1. 1 means no dropout. Note that if use_dropout is false \
                 this is ignored.')
-parser.add_argument('--filename', metavar='filename', type=str, default="atmos_daily_0",
+parser.add_argument('--learning_rate', metavar='learning_rate', type=float, default=1e-4,
+                                                      help='learning_rate, small number e.g. 1e-4')
+parser.add_argument('--filename', metavar='filename', type=str, default="atmos_daily_10",
         help='filename for training data:  should be either atmos_daily_0 or atmos_all_12')
-parser.add_argument('--valid_filename', metavar='valid_filename', type=str, default="atmos_daily_1",
+parser.add_argument('--valid_filename', metavar='valid_filename', type=str, default="atmos_daily_11",
                 help='filename for training data:  should be either atmos_daily_0 or atmos_all_13')
 
 ## 
@@ -52,6 +56,7 @@ parser.add_argument('--valid_filename', metavar='valid_filename', type=str, defa
 
 args = parser.parse_args()
 print(args)
+component = args.component
 transform = args.transform
 init_epoch = args.init_epoch
 n_epoch = args.n_epoch
@@ -65,6 +70,7 @@ if subset_time != None:
     subset_time = tuple(subset_time)
 use_dropout = args.use_dropout
 dropout_rate = args.dropout_rate
+learning_rate = args.learning_rate
 filestart = args.filename
 valid_filestart = args.valid_filename
 
@@ -98,7 +104,8 @@ gw_dataset = GravityWavesDataset(data_dir, filename,
                                  npfull_out=n_out,
                                  subset_time=subset_time,
                                  transform = transform,
-                                 transform_dict = transform_dict)
+                                 transform_dict = transform_dict,
+                                 component = component)
 
 # Validation set
 valid_filename = f"{valid_filestart}.nc"
@@ -107,7 +114,8 @@ valid_dataset = GravityWavesDataset(data_dir, valid_filename,
                                     npfull_out=n_out,
                                     subset_time=subset_time,
                                     transform = transform,
-                                    transform_dict = transform_dict)
+                                    transform_dict = transform_dict, 
+                                    component = component)
 
 # Save directories
 save_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"
@@ -161,8 +169,8 @@ else:
 my_model = my_model.to(device)
 
 
-n_valid = 2**20  # select only first 3rd of the year for validation, reserve rest for testing
-optimizer = torch.optim.Adam(my_model.parameters(), lr=1e-3)
+##n_valid = 2**20  # select only first 3rd of the year for validation, reserve rest for testing
+optimizer = torch.optim.Adam(my_model.parameters(), lr=learning_rate)
 loss_func = MSELoss()
 
 print(f"Running {n_epoch} epochs with {n_batches} batchs of batch size={batch_size} \
@@ -202,8 +210,8 @@ for ep in range(init_epoch+1, n_epoch):
         err = loss_func(Y_pred, Y)
         valid_loss += err.item()
         i+=1
-        if i >= n_valid:
-            break
+        ##if i >= n_valid:
+        ##    break
         
     valid_loss = valid_loss / i
     
