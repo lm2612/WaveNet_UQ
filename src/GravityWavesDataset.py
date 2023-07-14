@@ -4,6 +4,7 @@ import xarray as xr
 import torch
 from torch.utils.data import Dataset
 
+## New Dataset
 class GravityWavesDataset(Dataset):
     """Gravity wave AD99 dataset."""
 
@@ -35,6 +36,7 @@ class GravityWavesDataset(Dataset):
         self.time = self.ds["time"]
         self.pfull = self.ds["pfull"]
         
+        
         self.ntime = len(self.time)
         self.npfull_in = len(self.pfull)
         self.nlat = len(self.lat)
@@ -53,6 +55,7 @@ class GravityWavesDataset(Dataset):
         self.gwfu = self.ds[gwf_comp]
         self.ucomp = self.ds[wind_comp]
         self.temp = self.ds["temp"]
+        self.ps = self.ds["ps"]
         
         if subset_time != None:
             time_start = subset_time[0]
@@ -68,28 +71,34 @@ class GravityWavesDataset(Dataset):
         
 
         # Note we do not need pressure levels, give this a dummy 1D value
-        dummy_val = np.array([np.nan])
+        self.dummy_val = np.array([np.nan])
         self.lon_expanded = self.lon.expand_dims(dim={'time':self.time, 
-                                                      'pfull':dummy_val, 
+                                                      'pfull':self.dummy_val, 
                                                       'lat':self.lat}, 
                                        axis =(0,1,2))
         self.lat_expanded = self.lat.expand_dims(dim={'time':self.time, 
-                                                      'pfull':dummy_val, 
+                                                      'pfull':self.dummy_val, 
                                                       'lon':self.lon}, 
                                        axis=(0,1,3))
+        self.ps_expanded = self.ps.expand_dims(dim={'pfull':self.dummy_val}, 
+                                       axis=(1))
+        
         # Convert to numpy arrays (load into memory) for faster computation later
         self.ucomp = self.ucomp.to_numpy()
         self.temp = self.temp.to_numpy()
         self.gwfu = self.gwfu.to_numpy()
+        self.ps = self.ps.to_numpy()
         self.lon = self.lon.to_numpy()
         self.lat = self.lat.to_numpy()
         self.time = self.time.to_numpy()
         self.pfull = self.pfull.to_numpy()
         self.lon_expanded = self.lon_expanded.to_numpy()
         self.lat_expanded = self.lat_expanded.to_numpy()
+        self.ps_expanded = self.ps_expanded.to_numpy()
 
     
         # Other info needed for __get_item__()
+        self.transform_on = False
         self.transform = transform
         self.transform_dict = transform_dict
         if transform:
@@ -105,24 +114,41 @@ class GravityWavesDataset(Dataset):
                     self.gwfu_min = ds_min[gwf_comp].to_numpy() 
                     self.u_min = ds_min[wind_comp].to_numpy() 
                     self.T_min = ds_min["temp"].to_numpy() 
+                    self.ps_min = ds_min["ps"].expand_dims(dim={'pfull':self.dummy_val},
+                                                           axis=(1)).to_numpy()
                 
                 filename_max = transform_dict["filename_max"]
                 with xr.open_dataset(transform_dir + filename_max, decode_times=False ) as ds_max:
                     self.gwfu_max = ds_max[gwf_comp].to_numpy() 
                     self.u_max = ds_max[wind_comp].to_numpy() 
                     self.T_max = ds_max["temp"].to_numpy() 
+                    self.ps_max = ds_max["ps"].expand_dims(dim={'pfull':self.dummy_val},
+                                                           axis=(1)).to_numpy()
+                    
+                ## Apply transform so that dataset returns transformed variables only
+                self.apply_minmax_scaler()
+
+
             elif transform.lower() == "standard":
                 filename_mean = transform_dict["filename_mean"]
                 with xr.open_dataset(transform_dir + filename_mean, decode_times=False ) as ds_mean:
-                    self.gwfu_mean = ds_mean[gwf_comp].to_numpy() 
-                    self.u_mean = ds_mean[wind_comp].to_numpy() 
-                    self.T_mean = ds_mean["temp"].to_numpy() 
+                    self.gwfu_mean = ds_mean[gwf_comp].to_numpy().mean(axis=(2,3), keepdims=True)
+                    self.u_mean = ds_mean[wind_comp].to_numpy().mean(axis=(2,3), keepdims=True)
+                    self.T_mean = ds_mean["temp"].to_numpy().mean(axis=(2,3), keepdims=True)
+                    self.ps_mean = ds_mean["ps"].expand_dims(dim={'pfull':self.dummy_val},
+                                                           axis=(1)).to_numpy().mean(axis=(2,3), keepdims=True)
                 
                 filename_sd = transform_dict["filename_sd"]
                 with xr.open_dataset(transform_dir + filename_sd, decode_times=False ) as ds_sd:
-                    self.gwfu_sd = ds_sd[gwf_comp].to_numpy() 
-                    self.u_sd = ds_sd[wind_comp].to_numpy() 
-                    self.T_sd = ds_sd["temp"].to_numpy() 
+                    self.gwfu_sd = ds_sd[gwf_comp].to_numpy().mean(axis=(2,3), keepdims=True)
+                    self.u_sd = ds_sd[wind_comp].to_numpy().mean(axis=(2,3), keepdims=True)
+                    self.T_sd = ds_sd["temp"].to_numpy().mean(axis=(2,3), keepdims=True)
+                    self.ps_sd = ds_mean["ps"].expand_dims(dim={'pfull':self.dummy_val},
+                                                           axis=(1)).to_numpy().mean(axis=(2,3), keepdims=True)
+                    
+                ## Apply transform so that dataset returns transformed variables only. 
+                self.apply_standard_scaler()                
+
             else:
                 print(f"Transform {transform} functionality does not exist")
 
@@ -132,6 +158,17 @@ class GravityWavesDataset(Dataset):
         #return len(self.ds['time']) * len(self.ds['lon']) * len(self.ds['lat'])
         return self.ntime * self.nlon * self.nlat
 
+
+    def __getitem__(self, idx):
+        """Generates one sample at index idx (int)"""
+        # find time, lat and lon indices for idx
+        time_idx, lat_idx, lon_idx = self.get_time_lat_lon(idx)
+
+        X, Y = self.get_from_3d_inds(time_idx, lat_idx, lon_idx)
+        # Return as torch tensors 
+        sample = {'X': torch.from_numpy(X),
+                  'Y': torch.from_numpy(Y)}
+        return sample
 
     def get_time_lat_lon(self, idx):
         """Extracts unique time, lat and lon index from a single integer index """
@@ -155,74 +192,83 @@ class GravityWavesDataset(Dataset):
         return time_ind * (self.nlat*self.nlon) + lat_ind * self.nlon + lon_ind
 
 
-    def minmax_scaler(self, u, T, gwfu, lat_idx, lon_idx):
-        """Min max scaler"""
-        gwfu_min = self.gwfu_min[0, :, lat_idx, lon_idx]
-        u_min = self.u_min[0, :, lat_idx, lon_idx]
-        T_min = self.T_min[0, :, lat_idx, lon_idx]
-        gwfu_max = self.gwfu_max[0, :, lat_idx, lon_idx]
-        u_max = self.u_max[0, :, lat_idx, lon_idx]
-        T_max = self.T_max[0, :, lat_idx, lon_idx]
-
-        # Apply min max scaler
-        gwfu = (gwfu - gwfu_min) / (gwfu_max - gwfu_min)
-        gwfu = np.nan_to_num(gwfu, nan=0)      # Remove nans that occur when min and max = 0
+    def minmax_scaler(self, u, u_min, u_max):
+        """Min max scaler can be applied to any variable, 
+        you must have already done indexing i.e. u_min = u_min_global[0, :, lat_idx, lon_idx]"""
         u = (u - u_min) / (u_max - u_min)
-        T = (T - T_min) / (T_max - T_min)
-        return u, T, gwfu
-
-    def inverse_minmax_scaler(self, u, T, gwfu, lat_idx, lon_idx):
-        gwfu_min = self.gwfu_min[0, :self.npfull_out, lat_idx, lon_idx]
-        u_min = self.u_min[0, :, lat_idx, lon_idx]
-        T_min = self.T_min[0, :, lat_idx, lon_idx]
-        gwfu_max = self.gwfu_max[0, :self.npfull_out, lat_idx, lon_idx]
-        u_max = self.u_max[0, :, lat_idx, lon_idx]
-        T_max = self.T_max[0, :, lat_idx, lon_idx]
-
-        # Apply min max scaler
-        gwfu = gwfu * (gwfu_max - gwfu_min) + gwfu_min
+        u = np.nan_to_num(u, nan=0)    # Remove nans that occur when min and max = 0
+        return u
+    
+    def inverse_minmax_scaler(self, u, u_min, u_max):
+        """Inverse min max scaler can be applied to any variable, 
+        you must have already done indexing i.e. u_min = u_min_global[0, :, lat_idx, lon_idx]"""
         u = u  * (u_max - u_min) +  u_min
-        T = T * (T_max - T_min) + T_min
-        return u, T, gwfu
+        return u
+    
+    def apply_minmax_scaler(self):
+        if self.transform_on:
+            print("Transform already applied to this dataset, doing nothing)")
+            return
+        else:
+            self.ucomp = self.minmax_scaler(self.ucomp, self.u_min, self.u_max)
+            self.gwfu = self.minmax_scaler(self.gwfu, self.gwfu_min, self.gwfu_max)
+            self.temp = self.minmax_scaler(self.temp, self.T_min, self.T_max)
+            self.ps_expanded = self.minmax_scaler(self.ps_expanded, self.ps_min, self.ps_max)
+            self.transform_on = True
+            print("Dataset will return transformed variables (minmax scaler)")
 
-    def standard_scaler(self, u, T, gwfu, lat_idx, lon_idx):
-        """Standard scaler"""
-        gwfu_mean = self.gwfu_mean[0, :, lat_idx, lon_idx]
-        u_mean = self.u_mean[0, :, lat_idx, lon_idx]
-        T_mean = self.T_mean[0, :, lat_idx, lon_idx]
-        gwfu_sd = self.gwfu_sd[0, :, lat_idx, lon_idx]
-        u_sd = self.u_sd[0, :, lat_idx, lon_idx]
-        T_sd = self.T_sd[0, :, lat_idx, lon_idx]
+    def apply_inverse_minmax_scaler(self):
+        if self.transform_on==False:
+            print("Transform not applied to this dataset, doing nothing")
+            return
+        else: 
+            self.ucomp = self.inverse_minmax_scaler(self.ucomp, self.u_min, self.u_max)
+            self.gwfu = self.inverse_minmax_scaler(self.gwfu, self.gwfu_min, self.gwfu_max)
+            self.temp = self.inverse_minmax_scaler(self.temp, self.T_min, self.T_max)
+            self.ps_expanded = self.inverse_minmax_scaler(self.ps_expanded, self.ps_min, self.ps_max)
+            self.transform_on = False
+        print("Dataset will return raw variables")
         
-        # Apply standard scaler
-        zero_inds = np.where(gwfu_sd == 0)
-        
-        gwfu = (gwfu - gwfu_mean) / gwfu_sd
-        gwfu = np.nan_to_num(gwfu, nan=0)      # Remove nans that occur when sd = 0
+
+    def standard_scaler(self, u,  u_mean, u_sd):
+        """Standard scaler can be applied to any variable, 
+        you must have already done indexing i.e. u_mean = u_mean_global[0, :, lat_idx, lon_idx]"""
         u = (u - u_mean) / u_sd
-        T = (T - T_mean) / T_sd
-        return u, T, gwfu
+        u = np.nan_to_num(u, nan=0)    # Remove nans that occur when sd = 0
+        return u
 
-
-    def inverse_standard_scaler(self, u, T, gwfu, lat_idx, lon_idx):
-        """Standard scaler"""
-        gwfu_mean = self.gwfu_mean[0, :self.npfull_out, lat_idx, lon_idx]
-        u_mean = self.u_mean[0, :, lat_idx, lon_idx]
-        T_mean = self.T_mean[0, :, lat_idx, lon_idx]
-        gwfu_sd = self.gwfu_sd[0, :self.npfull_out, lat_idx, lon_idx]
-        u_sd = self.u_sd[0, :, lat_idx, lon_idx]
-        T_sd = self.T_sd[0, :, lat_idx, lon_idx]
-
-        # Apply standard scaler
-        gwfu = gwfu *  gwfu_sd + gwfu_mean
+    def inverse_standard_scaler(self, u, u_mean, u_sd):
+        """Inverse Standard scaler can be applied to any variable, 
+        you must have already done indexing i.e. u_mean = u_mean_global[0, :, lat_idx, lon_idx]"""
         u = u * u_sd + u_mean
-        T = T * T_sd + T_mean
-        return u, T, gwfu
+        return u
+    
+    def apply_standard_scaler(self):
+        if self.transform_on:
+            print("Transform already applied to this dataset, doing nothing)")
+            return
+        else:
+            self.ucomp = self.standard_scaler(self.ucomp, self.u_mean, self.u_sd)
+            self.gwfu = self.standard_scaler(self.gwfu, self.gwfu_mean, self.gwfu_sd)
+            self.temp = self.standard_scaler(self.temp, self.T_mean, self.T_sd)
+            self.ps_expanded = self.standard_scaler(self.ps_expanded, self.ps_mean, self.ps_sd)
+            self.transform_on = True
+            print("Dataset will return transformed variables (standard scaler)")
 
-    def get_from_3d_inds(self, time_idx, lat_idx, lon_idx, apply_transform=True):
+    def apply_inverse_standard_scaler(self):
+        if self.transform_on==False:
+            print("Transform not applied to this dataset, doing nothing")
+            return
+        else: 
+            self.ucomp = self.inverse_standard_scaler(self.ucomp, self.u_mean, self.u_sd)
+            self.gwfu = self.inverse_standard_scaler(self.gwfu, self.gwfu_mean, self.gwfu_sd)
+            self.temp = self.inverse_standard_scaler(self.temp, self.T_mean, self.T_sd)
+            self.ps_expanded = self.inverse_standard_scaler(self.ps_expanded, self.ps_mean, self.ps_sd)
+            self.transform_on = False
+        print("Dataset will return raw variables")
+
+    def get_from_3d_inds(self, time_idx, lat_idx, lon_idx):
         """Extracts X,Y from dataset given separate time, lat and lon index.
-        Applies transform by default, but can be switched off to return raw X, Y 
-        (e.g. for analysis/plotting).
         Returns X, Y."""
         # Select samples, these will have dimension (n_samples, n_pfull)
         # Use slicing as we want to keep structure of arrays
@@ -234,79 +280,19 @@ class GravityWavesDataset(Dataset):
         T = self.temp[time_idx, :, lat_idx, lon_idx]
         lon_expanded = self.lon_expanded[time_idx, :, lat_idx, lon_idx]
         lat_expanded = self.lat_expanded[time_idx, :, lat_idx, lon_idx]
-        
-        ## if apply_transform is True and we have defined a transform to apply 
-        if self.transform:
-            if self.transform.lower() == "minmax":
-                u, T, gwfu = self.minmax_scaler(u, T, gwfu, lat_idx, lon_idx)
-            elif self.transform.lower() == "standard":
-                u, T, gwfu = self.standard_scaler(u, T, gwfu, lat_idx, lon_idx)
-            # Scale lat between -1 and +1
-            lat_expanded = lat_expanded / 90.
-            # Scale lon between -1 and +1
-            lon_expanded = (lon_expanded-180.) / 180. 
+        ps_expanded = self.ps_expanded[time_idx, :, lat_idx, lon_idx]
 
         # Concatenate X and set up Y arrays
-        #X = xr.concat((u, T, lat_expanded, lon_expanded), dim='pfull')
-        X = np.concatenate((u, T, lat_expanded, lon_expanded), axis=-1 )
-
+        ## TODO ADD TEMPERATURE BACK IN, CURRENTLY ARRAY IS SIZE 42. 
+        X = np.concatenate((u, T, lat_expanded, ps_expanded), axis=-1 )
+        ######X = np.concatenate((u, lat_expanded, ps_expanded), axis=-1 )
         Y = gwfu[:, :self.npfull_out]
         return X, Y
 
-
-    def get_uT_from_X(self, X):
+    def get_uTlp_from_X(self, X):
         u = X[:, :self.npfull_in]
         T = X[:, self.npfull_in:self.npfull_in*2]
         lat_expanded = X[:, self.npfull_in*2]
-        lon_expanded = X[:, self.npfull_in*2 + 1]
-        return (u, T, lat_expanded, lon_expanded)
+        ps_expanded = X[:, self.npfull_in*2 + 1]
+        return (u, T, lat_expanded, ps_expanded)
 
-    def inverse_scaler(self, X, Y):
-        if torch.is_tensor(X):
-            X = X.detach().numpy()
-        if torch.is_tensor(Y):
-            Y = Y.detach().numpy()
-
-        u, T, lat, lon = self.get_uT_from_X(X)
-        gwfu = Y
-
-        n_batch = lat.shape[0]
-        
-        lat_scaled = self.lat / 90.
-        lon_scaled = (self.lon - 180.) / 180. 
-
-        for i in range(n_batch):
-            ## Extract lat and lon indices
-            lat_idx = list(np.where(lat_scaled==lat[i])[0])
-            lon_idx = list(np.where(lon_scaled==lon[i])[0])
-
-            if self.transform.lower() == "minmax":
-                ui, Ti, gwfui = self.inverse_minmax_scaler(u[i], T[i], gwfu[i],
-                                                        lat_idx, lon_idx)
-            elif self.transform.lower() == "standard":
-                ui, Ti, gwfui = self.inverse_standard_scaler(u[i], T[i], gwfu[i],
-                                                          lat_idx, lon_idx)
-
-            ## Concatenate to put back into X, Y format, including lat/lon in xarray form
-            lon_expanded = self.lon_expanded[0, :, lat_idx, lon_idx]
-            lat_expanded = self.lat_expanded[0, :, lat_idx, lon_idx]
-            X[i,:] = np.concatenate((ui, Ti, lat_expanded, lon_expanded), axis=-1)
-            Y[i,:] = gwfui
-
-        return X, Y
-
-
-
-    def __getitem__(self, idx):
-        """Generates one sample at index idx (int)"""
-        # find time, lat and lon indices for idx
-        time_idx, lat_idx, lon_idx = self.get_time_lat_lon(idx)
-
-        X, Y = self.get_from_3d_inds(time_idx, lat_idx, lon_idx,
-                                       apply_transform=True)
-        
-        # Return as torch tensors (xarray -> numpy -> torch)
-        sample = {'X': torch.from_numpy(X),
-                  'Y': torch.from_numpy(Y)}
-
-        return sample
