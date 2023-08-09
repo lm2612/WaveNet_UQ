@@ -168,8 +168,7 @@ else:
 
 my_model = my_model.to(device)
 
-
-##n_valid = 2**20  # select only first 3rd of the year for validation, reserve rest for testing
+# Set up optimizer and loss function
 optimizer = torch.optim.Adam(my_model.parameters(), lr=learning_rate)
 loss_func = MSELoss()
 
@@ -210,8 +209,6 @@ for ep in range(init_epoch+1, n_epoch):
         err = loss_func(Y_pred, Y)
         valid_loss += err.item()
         i+=1
-        ##if i >= n_valid:
-        ##    break
         
     valid_loss = valid_loss / i
     
