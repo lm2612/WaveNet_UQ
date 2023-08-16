@@ -6,18 +6,13 @@ from utils import init_xavier
 
 
 class Wavenet_for_MiMA(nn.Module):
-    def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=33, 
-                 use_dropout=False,
+    def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=33, dropout_rate=0. 
                  transform_vars = {}
                  ):
         super(Wavenet_for_MiMA, self).__init__()
         self.n_in = n_in
         self.n_d = n_d
         self.n_out = n_out
-        if use_dropout:
-            dropout_rate = 0.5
-        else:
-            dropout_rate = 1
         self.shared = nn.Sequential(
             nn.BatchNorm1d(self.n_in),     # Added by Laura, not in orig WaveNet
             nn.Linear(self.n_in, self.n_d[0]),
@@ -84,17 +79,16 @@ class Wavenet_for_MiMA(nn.Module):
                            ps_scaled
                            ), dim=1)
         ## Predict gwfu
-        gu = torch.zeros(x.shape[0], self.n_out, device=x.device)
-
-        z = self.shared(x) 
-
+        gu = torch.zeros((x.shape[0], self.n_d[3], self.n_out), device=x.device)
+        z = self.shared(x)
         # Do branching.
-        for j in range(self.n_out): gu[:,j]= self.branches[j](z).squeeze()
-            
+        for j in range(self.n_out):
+            gu[..., j] = self.branches[j](z)
+
         ## Rescale and return gwfu 
         gwfu_mean = self.gwfu_mean[0,:,lat_ind,0].squeeze(dim=2).transpose(0,1)
         gwfu_sd = self.gwfu_sd[0,:,lat_ind,0].squeeze(dim=2).transpose(0,1)
-        return self.inverse_standard_scaler(gu, gwfu_mean, gwfu_sd)
+        return self.inverse_standard_scaler(gu[:, 0, :], gwfu_mean, gwfu_sd)
 
     
     def standard_scaler(self, u,  u_mean, u_sd):
