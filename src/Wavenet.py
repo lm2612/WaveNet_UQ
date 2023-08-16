@@ -4,15 +4,11 @@ import torch.nn as nn
 from utils import init_xavier
 
 class Wavenet(nn.Module):
-    def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=33, use_dropout=False, dropout_rate=0.5):
+    def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=33, dropout_rate=0):
         super(Wavenet, self).__init__()
         self.n_in = n_in
         self.n_d = n_d
         self.n_out = n_out
-        if use_dropout:
-            dropout_rate = dropout_rate
-        else:
-            dropout_rate = 0.
         self.shared = nn.Sequential(
             nn.BatchNorm1d(self.n_in),     # Added by Laura, not in orig WaveNet
             nn.Linear(self.n_in, self.n_d[0]),       
@@ -32,17 +28,9 @@ class Wavenet(nn.Module):
         for branch in self.branches:
             branch.apply(init_xavier)
     def forward(self, x):
-        ## IF x contains the input (x3), as well as the memory allocation for the output (gu), then do the following. 
-        ##x3, gu = x
-        ## ELSE
-        x3 = x
-        gu = torch.zeros(x3.shape[0], self.n_out, device=x3.device)
-
-        # Reshape x3 by concatenating the two fields (U, T).
-        ##x3 = torch.reshape(x3, (x3.shape[0], x3.shape[1]*x3.shape[2]))
-
-        z = self.shared(x3) #; print(z3.shape)
-
+        gu = torch.zeros((x.shape[0], self.n_d[3], self.n_out), device=x.device)
+        z = self.shared(x) 
         # Do branching.
-        for j in range(self.n_out): gu[:,j]= self.branches[j](z).squeeze()
+        for j in range(self.n_out): 
+            gu[..., j] = self.branches[j](z)
         return gu
