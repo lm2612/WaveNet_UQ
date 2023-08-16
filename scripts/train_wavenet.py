@@ -8,6 +8,7 @@ import random
 
 from torch.nn import MSELoss, Module
 from torch.utils.data import Dataset, DataLoader
+import torch.optim.lr_scheduler as lr_scheduler
 
 # my imports
 import sys
@@ -39,11 +40,13 @@ parser.add_argument('--subset_time', metavar='subset_time', type=int, nargs='+',
                                                       e.g. (150, 240) for JJA. Currently only contininous time slicing \
                                                       can be implemented. Will allow (-30,60) for DJF')
 parser.add_argument('--dropout_rate', metavar='dropout_rate', type=float, default=0,
-        help='dropout rate: a floating point number between 0 and 1. 0 means no dropout.')
+        help='dropout rate: a floating point number between 0 and 1. 0 means no dropout')
 parser.add_argument('--learning_rate', metavar='learning_rate', type=float, default=1e-4,
                                                       help='learning_rate, small number e.g. 1e-4')
-parser.add_argument('--filename', metavar='filename', type=str, default="atmos_daily_10",
+parser.add_argument('--filename', metavar='filename', type=str, nargs='+', default="atmos_all_12",
         help='filename for training data:  should be either atmos_daily_0 or atmos_all_12')
+parser.add_argument('--scaler_filestart', metavar='scaler_filestart', type=str, default="atmos_all_12",
+                help='start of filename for files containing means and std for scaling:  should be either atmos_daily_0 or atmos_all_12')
 parser.add_argument('--valid_filename', metavar='valid_filename', type=str, default="atmos_daily_11",
                 help='filename for training data:  should be either atmos_daily_0 or atmos_all_13')
 
@@ -67,7 +70,11 @@ if subset_time != None:
     subset_time = tuple(subset_time)
 dropout_rate = args.dropout_rate
 learning_rate = args.learning_rate
-filestart = args.filename
+if len(args.filename)==1:
+    filename = args.filename[0]
+else:
+    filename = args.filename
+filestart = args.scaler_filestart
 valid_filestart = args.valid_filename
 
 print(f"Training wavenet with {transform} scaler, start from epoch {init_epoch}. Seed = {seed}. Using dropout? {dropout_rate}")
@@ -77,8 +84,8 @@ print(device)
 
 # Set up directories and files
 data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
-filename = f"{filestart}.nc"
-print(f"Training file: {filename}")
+#filename = f"{filestart}.nc"
+print(f"Training file(s): {filename}")
 # Transform can be minmax or standard or none
 
 if transform == "standard":
@@ -164,6 +171,8 @@ my_model = my_model.to(device)
 
 # Set up optimizer and loss function
 optimizer = torch.optim.Adam(my_model.parameters(), lr=learning_rate)
+## Linearly decrease learning rate over 200 epochs from 1e-3 to 1e-5
+scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.01, total_iters=200)
 loss_func = MSELoss()
 
 print(f"Running {n_epoch} epochs with {n_batches} batchs of batch size={batch_size} \
@@ -178,19 +187,23 @@ for ep in range(init_epoch+1, n_epoch):
         optimizer.zero_grad()
         X, Y = batch["X"].squeeze(), batch["Y"].squeeze()
         X, Y = X.to(device), Y.to(device)
-        Y_pred = my_model(X)
+        Y_pred = my_model(X).squeeze()
         err = loss_func(Y_pred, Y)
         err.backward()
         optimizer.step()
         losses.append(err.item())
         training_loss += err.item()
-        if i % 100 == 0:
+        if i % 1000 == 0:
             print(f"iteration: {i}, Loss:{err.item()}")
         i+=1
 
     training_loss = training_loss / i
-    
+    before_lr = optimizer.param_groups[0]["lr"]
+    scheduler.step()
+    after_lr = optimizer.param_groups[0]["lr"]
+    print("Epoch %d: ADAM lr %.4f -> %.4f" % (ep, before_lr, after_lr))
     print(f"Training done for epoch {ep}. Validation...")
+    
 
     ## Validation loss
     i = 0
@@ -199,7 +212,7 @@ for ep in range(init_epoch+1, n_epoch):
     for batch in valid_dataloader:
         X, Y = batch["X"].squeeze(), batch["Y"].squeeze()
         X, Y = X.to(device), Y.to(device)
-        Y_pred = my_model(X)
+        Y_pred = my_model(X).squeeze()
         err = loss_func(Y_pred, Y)
         valid_loss += err.item()
         i+=1
