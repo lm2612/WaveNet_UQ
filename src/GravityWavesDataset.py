@@ -17,7 +17,7 @@ class GravityWavesDataset(Dataset):
         done with numpy arrays. If not, use other Xarray/dask version, which is slower.
         Args:
             data_dir (string): Location of directory
-            filename (string): Filename of netcdf containing ucomp, temp, gwfu_cgwd
+            filename (string) or Tuple/List of strings: Filename of netcdf containing ucomp, temp, gwfu_cgwd
             npfull_out (int): Number of outputs to predict
             subset_time (None or tuple): Either none or the slice of data to extract
                 in time, e.g. if you want to select only 1 season or a smaller validation
@@ -28,7 +28,14 @@ class GravityWavesDataset(Dataset):
             component (string, optional): Either zonal or meridional.
                 
         """
-        path_to_file = data_dir + filename
+        if isinstance(filename, str):
+            filename0 = filename
+            print(f"Setting up dataset from single file: {filename0}")
+        else:
+            filename0 = filename[0]
+            print(f"Setting up dataset from multiple files. Starting with {filename0}")
+
+        path_to_file = data_dir + filename0
         self.ds = xr.open_dataset(path_to_file, decode_times=False )
         # Get dimensions
         self.lon = self.ds["lon"]
@@ -42,7 +49,7 @@ class GravityWavesDataset(Dataset):
         self.nlon = len(self.lon)
         self.npfull_out = npfull_out
 
-        print(f"Full dataset has ntime={self.ntime}")
+        print(f"Dataset has ntime={self.ntime}")
         # Get variables 
         if component.lower() == "zonal":
             wind_comp = "ucomp"
@@ -69,6 +76,25 @@ class GravityWavesDataset(Dataset):
             self.ps = self.ps[time_start:time_end]
             print(f"Data is subset by time from {time_start} to {time_end}. ntime={self.ntime}")
         
+        if isinstance(filename, str):
+            print(f"Done opening single file")
+        else:
+            print(f"Done opening first file, now opening rest and concatenating")
+            n_files = len(filename)
+            print(f"Number of files: {n_files}")
+            for file_no in range(1, n_files):
+                filename_n = filename[file_no]
+                print(f"Setting up {filename_n}")
+                path_to_file = data_dir + filename_n
+                self.ds = xr.open_dataset(path_to_file, decode_times=False )
+                self.time = xr.concat((self.time, self.ds["time"]), dim="time")
+                self.gwfu = xr.concat((self.gwfu, self.ds[gwf_comp]), dim="time")
+                self.ucomp = xr.concat((self.ucomp, self.ds[wind_comp]), dim="time")
+                self.temp = xr.concat((self.temp, self.ds["temp"]), dim="time")
+                self.ps = xr.concat((self.ps, self.ds["ps"]), dim="time")
+                self.ntime = len(self.time)
+            print(f"Done opening all files. Full dataset has ntime={self.ntime}")
+
         # Note we do not need pressure levels, give this a dummy 1D value
         self.dummy_val = np.array([np.nan])
         
@@ -81,6 +107,7 @@ class GravityWavesDataset(Dataset):
                                        axis=(1))
         
         # Convert to numpy arrays (load into memory) for faster computation later
+        print("Load into memory")
         self.ucomp = self.ucomp.to_numpy()
         self.temp = self.temp.to_numpy()
         self.gwfu = self.gwfu.to_numpy()
@@ -91,6 +118,7 @@ class GravityWavesDataset(Dataset):
         self.pfull = self.pfull.to_numpy()
         self.lat_expanded = self.lat_expanded.to_numpy()
         self.ps_expanded = self.ps_expanded.to_numpy()
+        print("Done. All variables as numpy arrays")
 
     
         # Other info needed for __get_item__()
@@ -98,6 +126,7 @@ class GravityWavesDataset(Dataset):
         self.transform = transform
         self.transform_dict = transform_dict
         if transform:
+            print("Setting up transforms")
             if "transform_dir" in transform_dict.keys():
                 transform_dir =  transform_dict["transform_dir"]
             else:
@@ -147,11 +176,12 @@ class GravityWavesDataset(Dataset):
 
             else:
                 print(f"Transform {transform} functionality does not exist")
+        
+        print("Done. Dataset ready.")
 
 
 
     def __len__(self):
-        #return len(self.ds['time']) * len(self.ds['lon']) * len(self.ds['lat'])
         return self.ntime * self.nlon * self.nlat
 
 
