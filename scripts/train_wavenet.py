@@ -38,11 +38,8 @@ parser.add_argument('--subset_time', metavar='subset_time', type=int, nargs='+',
                                               help='subset of data to use. Either None or tuple as x1 x2 \
                                                       e.g. (150, 240) for JJA. Currently only contininous time slicing \
                                                       can be implemented. Will allow (-30,60) for DJF')
-parser.add_argument('--use_dropout', metavar='use_dropout', type=bool, default=False,
-                                              help='use dropout - either true or false')
-parser.add_argument('--dropout_rate', metavar='dropout_rate', type=float, default=0.5,
-        help='dropout rate: a floating point number between 0 and 1. 1 means no dropout. Note that if use_dropout is false \
-                this is ignored.')
+parser.add_argument('--dropout_rate', metavar='dropout_rate', type=float, default=0,
+        help='dropout rate: a floating point number between 0 and 1. 0 means no dropout.')
 parser.add_argument('--learning_rate', metavar='learning_rate', type=float, default=1e-4,
                                                       help='learning_rate, small number e.g. 1e-4')
 parser.add_argument('--filename', metavar='filename', type=str, default="atmos_daily_10",
@@ -68,15 +65,12 @@ n_out = args.n_out
 subset_time = args.subset_time
 if subset_time != None:
     subset_time = tuple(subset_time)
-use_dropout = args.use_dropout
 dropout_rate = args.dropout_rate
 learning_rate = args.learning_rate
 filestart = args.filename
 valid_filestart = args.valid_filename
 
-print(f"Training wavenet with {transform} scaler, start from epoch {init_epoch}. Seed = {seed}. Using dropout? {use_dropout}")
-if use_dropout:
-    print(f"Dropout rate {dropout_rate}")
+print(f"Training wavenet with {transform} scaler, start from epoch {init_epoch}. Seed = {seed}. Using dropout? {dropout_rate}")
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -145,7 +139,7 @@ valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size,
 # Set up model
 if init_epoch==0:
     torch.manual_seed(seed)
-    my_model = Wavenet(n_in=82, n_out=n_out, use_dropout=use_dropout, dropout_rate=dropout_rate)
+    my_model = Wavenet(n_in=82, n_out=n_out, dropout_rate=dropout_rate)
     losses =[]
     training_losses = []
     validation_losses = []
