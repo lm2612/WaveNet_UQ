@@ -13,6 +13,7 @@ import torch.optim.lr_scheduler as lr_scheduler
 # my imports
 import sys
 sys.path.append('../src/')
+from utils import check_nc
 from Wavenet import Wavenet
 from GravityWavesDataset import GravityWavesDataset
 
@@ -21,48 +22,67 @@ import argparse
 
 # Get run directory from argparser
 parser = argparse.ArgumentParser(description='Train wavenet')
-parser.add_argument('--component', metavar='component', type=str, default="zonal", 
-        help='directional component of gwd to predict, either zonal or meridional. Default is zonal')
-parser.add_argument('--transform', metavar='transform', type=str, default=None,
-                                                   help='transform used, either minmax standard or none')
-parser.add_argument('--init_epoch', metavar='init_epoch', type=int, default=0,
-                                                   help='epoch to start from, if 0, start from scratch')
-parser.add_argument('--n_epoch', metavar='n_epoch', type=int, default=10,
-                                                           help='number of epochs to train for')
+parser.add_argument('--component', metavar='component', type=str, 
+        default="zonal", 
+        help='directional component of gwd to predict, either zonal \
+                or meridional. Default is zonal')
+parser.add_argument('--transform', metavar='transform', type=str, 
+        default=None,
+        help='transform used, either minmax standard or none')
+parser.add_argument('--init_epoch', metavar='init_epoch', type=int, 
+        default=0,
+        help='epoch to start from, if 0, start from scratch')
+parser.add_argument('--n_epoch', metavar='n_epoch', type=int, 
+        default=10,
+        help='number of epochs to train for')
 parser.add_argument('--model_name', metavar='model_name', type=str, 
-                                                   help='name modelfor saving')
+        help='name of model for saving (used to create new dir)')
 parser.add_argument('--seed', metavar='seed', type=int,  default=1,
-                              help='initialization seed, only needed if starting from scratch and epoch=0')
-parser.add_argument('--n_out', metavar='n_out', type=int, default=33,
-                                      help='number of levels to predict, default 33. Can be up to 40')
-parser.add_argument('--subset_time', metavar='subset_time', type=int, nargs='+', default=None,
-                                              help='subset of data to use. Either None or tuple as x1 x2 \
-                                                      e.g. (150, 240) for JJA. Currently only contininous time slicing \
-                                                      can be implemented. Will allow (-30,60) for DJF')
-parser.add_argument('--dropout_rate', metavar='dropout_rate', type=float, default=0,
-        help='dropout rate: a floating point number between 0 and 1. 0 means no dropout')
-parser.add_argument('--learning_rate', metavar='learning_rate', type=float, default=1e-4,
-                                                      help='learning_rate, small number e.g. 1e-4')
-parser.add_argument('--filename', metavar='filename', type=str, nargs='+', default="atmos_all_12",
-        help='filename for training data:  should be either atmos_daily_0 or atmos_all_12')
-parser.add_argument('--scaler_filestart', metavar='scaler_filestart', type=str, default="atmos_all_12",
-                help='start of filename for files containing means and std for scaling:  should be either atmos_daily_0 or atmos_all_12')
-parser.add_argument('--valid_filename', metavar='valid_filename', type=str, default="atmos_daily_11",
-                help='filename for training data:  should be either atmos_daily_0 or atmos_all_13')
+        help='initialization seed, only needed if starting from scratch \
+                and epoch=0')
+parser.add_argument('--n_out', metavar='n_out', type=int, default=40,
+        help='number of levels to predict up to 40 (max 40). e.g. 33 to \
+                ignore zero levels')
+parser.add_argument('--subset_time', metavar='subset_time', type=int,
+        nargs='+', default=None,
+        help='subset of data to use. Either None or tuple as x1 x2 \
+                e.g. (150, 240) for JJA. Currently only contininous \
+                time slicing can be implemented. Will allow (-30,60) for DJF')
+parser.add_argument('--dropout_rate', metavar='dropout_rate',
+        type=float, default=0,
+        help='dropout rate: a floating point number between 0 and 1. \
+                0 means no dropout')
+parser.add_argument('--learning_rate', metavar='learning_rate', type=float, 
+        default=1e-4,
+        help='learning_rate, small number e.g. 1e-4')
+parser.add_argument('--weight_decay', metavar='weight_decay', type=float, 
+        default=1e-4,
+        help='weight decay, e.g. 1e-4')
+parser.add_argument('--filename', metavar='filename', type=str, 
+        nargs='+', default="atmos_all_12",
+        help='filename for training data, can be multiple files. \
+                File suffix should be .nc and will be added if not present here')
+parser.add_argument('--scaler_filestart', metavar='scaler_filestart', 
+        type=str, default="atmos_all_12",
+        help='start of filename for files containing means and std \
+                for scaling:  should be consistent with training data \
+                e.g. atmos_all_12')
+parser.add_argument('--valid_filename', metavar='valid_filename', 
+        type=str, default="atmos_daily_11",
+        help='filename for validation data, e.g. atmos_all_13.\
+                File suffix should be .nc and will be added if not present here')
 
-## 
-
-## TODO: add arguments for batch size, learning rate, n_epochs
-
+## Set up args
 args = parser.parse_args()
 print(args)
+
 component = args.component
 transform = args.transform
 init_epoch = args.init_epoch
 n_epoch = args.n_epoch
 model_name = args.model_name
 if model_name == None:
-    print("Error fatal: model name not provided to save output")
+    print("Model name not provided, expect errors - will not be able to save output.")
 seed = args.seed
 n_out = args.n_out
 subset_time = args.subset_time
@@ -71,13 +91,14 @@ if subset_time != None:
 dropout_rate = args.dropout_rate
 learning_rate = args.learning_rate
 if len(args.filename)==1:
-    filename = args.filename[0]
+    filename = check_nc(args.filename[0])
 else:
-    filename = args.filename
+    filename = check_nc(args.filename)
 filestart = args.scaler_filestart
-valid_filestart = args.valid_filename
+valid_filename = check_nc(args.valid_filename)
 
-print(f"Training wavenet with {transform} scaler, start from epoch {init_epoch}. Seed = {seed}. Using dropout? {dropout_rate}")
+print(f"Training wavenet with {transform} scaler, start from epoch {init_epoch}. \
+        Seed = {seed}. Using dropout? {dropout_rate}")
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
@@ -109,7 +130,6 @@ gw_dataset = GravityWavesDataset(data_dir, filename,
                                  component = component)
 
 # Validation set
-valid_filename = f"{valid_filestart}.nc"
 print(f"Validation file: {valid_filename}")
 valid_dataset = GravityWavesDataset(data_dir, valid_filename,
                                     npfull_out=n_out,
@@ -170,13 +190,16 @@ else:
 my_model = my_model.to(device)
 
 # Set up optimizer and loss function
-optimizer = torch.optim.Adam(my_model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(my_model.parameters(),
+        lr=learning_rate, 
+        weight_decay=weight_decay)
 ## Linearly decrease learning rate over 200 epochs from 1e-3 to 1e-5
-scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, end_factor=0.01, total_iters=200)
+scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, 
+        end_factor=0.01, total_iters=200)
 loss_func = MSELoss()
 
 print(f"Running {n_epoch} epochs with {n_batches} batchs of batch size={batch_size} \
-for dataset size {n_samples}")
+        for dataset size {n_samples}")
 
 ### TRAINING LOOP ###
 for ep in range(init_epoch+1, n_epoch):
