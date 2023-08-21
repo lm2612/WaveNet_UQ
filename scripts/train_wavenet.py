@@ -22,6 +22,7 @@ import argparse
 
 # Get run directory from argparser
 parser = argparse.ArgumentParser(description='Train wavenet')
+## Arguments that define the model/data
 parser.add_argument('--component', metavar='component', type=str, 
         default="zonal", 
         help='directional component of gwd to predict, either zonal \
@@ -29,17 +30,6 @@ parser.add_argument('--component', metavar='component', type=str,
 parser.add_argument('--transform', metavar='transform', type=str, 
         default=None,
         help='transform used, either minmax standard or none')
-parser.add_argument('--init_epoch', metavar='init_epoch', type=int, 
-        default=0,
-        help='epoch to start from, if 0, start from scratch')
-parser.add_argument('--n_epoch', metavar='n_epoch', type=int, 
-        default=10,
-        help='number of epochs to train for')
-parser.add_argument('--model_name', metavar='model_name', type=str, 
-        help='name of model for saving (used to create new dir)')
-parser.add_argument('--seed', metavar='seed', type=int,  default=1,
-        help='initialization seed, only needed if starting from scratch \
-                and epoch=0')
 parser.add_argument('--n_out', metavar='n_out', type=int, default=40,
         help='number of levels to predict up to 40 (max 40). e.g. 33 to \
                 ignore zero levels')
@@ -48,6 +38,34 @@ parser.add_argument('--subset_time', metavar='subset_time', type=int,
         help='subset of data to use. Either None or tuple as x1 x2 \
                 e.g. (150, 240) for JJA. Currently only contininous \
                 time slicing can be implemented. Will allow (-30,60) for DJF')
+
+## File names for training, valid, scaling and saving
+parser.add_argument('--model_name', metavar='model_name', type=str, 
+        help='name of model for saving (used to create new dir)')
+parser.add_argument('--filename', metavar='filename', type=str,
+        nargs='+', default="atmos_all_12",
+        help='filename for training data, can be multiple files. \
+                File suffix should be .nc and will be added if not present here')
+parser.add_argument('--scaler_filestart', metavar='scaler_filestart', 
+        type=str, default="atmos_all_12",
+        help='start of filename for files containing means and std \
+                for scaling:  should be consistent with training data \
+                e.g. atmos_all_12')
+parser.add_argument('--valid_filename', metavar='valid_filename',
+        type=str, default="atmos_daily_11",
+        help='filename for validation data, e.g. atmos_all_13.\
+                File suffix should be .nc and will be added if not present here')
+
+## Arguments for training settings
+parser.add_argument('--seed', metavar='seed', type=int,  default=1,
+        help='initialization seed, only needed if starting from scratch \
+                and epoch=0')
+parser.add_argument('--init_epoch', metavar='init_epoch', type=int,
+        default=0,
+        help='epoch to start from, if 0, start from scratch')
+parser.add_argument('--n_epoch', metavar='n_epoch', type=int,
+        default=10,
+        help='number of epochs to train for')
 parser.add_argument('--dropout_rate', metavar='dropout_rate',
         type=float, default=0,
         help='dropout rate: a floating point number between 0 and 1. \
@@ -58,19 +76,6 @@ parser.add_argument('--learning_rate', metavar='learning_rate', type=float,
 parser.add_argument('--weight_decay', metavar='weight_decay', type=float, 
         default=1e-4,
         help='weight decay, e.g. 1e-4')
-parser.add_argument('--filename', metavar='filename', type=str, 
-        nargs='+', default="atmos_all_12",
-        help='filename for training data, can be multiple files. \
-                File suffix should be .nc and will be added if not present here')
-parser.add_argument('--scaler_filestart', metavar='scaler_filestart', 
-        type=str, default="atmos_all_12",
-        help='start of filename for files containing means and std \
-                for scaling:  should be consistent with training data \
-                e.g. atmos_all_12')
-parser.add_argument('--valid_filename', metavar='valid_filename', 
-        type=str, default="atmos_daily_11",
-        help='filename for validation data, e.g. atmos_all_13.\
-                File suffix should be .nc and will be added if not present here')
 
 ## Set up args
 args = parser.parse_args()
