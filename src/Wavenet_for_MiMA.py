@@ -6,7 +6,7 @@ from utils import init_xavier
 
 
 class Wavenet_for_MiMA(nn.Module):
-    def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=33, dropout_rate=0. 
+    def __init__(self, n_d=[128,64,32,1], n_in=40, n_out=40, dropout_rate=0., 
                  transform_vars = {}
                  ):
         super(Wavenet_for_MiMA, self).__init__()
