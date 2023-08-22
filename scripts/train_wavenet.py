@@ -16,17 +16,21 @@ sys.path.append('../src/')
 from utils import check_nc
 from Wavenet import Wavenet
 from GravityWavesDataset import GravityWavesDataset
-
+from custom_loss import neg_log_likelihood_loss
 
 import argparse
 
-# Get run directory from argparser
+# Get arguments from argparser
 parser = argparse.ArgumentParser(description='Train wavenet')
+
 ## Arguments that define the model/data
 parser.add_argument('--component', metavar='component', type=str, 
         default="zonal", 
         help='directional component of gwd to predict, either zonal \
                 or meridional. Default is zonal')
+parser.add_argument('--aleatoric', action=argparse.BooleanOptionalAction,
+        help='turns on aleatoric uncertainty, meaning model produces mean \
+                 and std. Loss function is log likelihood rather than MSE')
 parser.add_argument('--transform', metavar='transform', type=str, 
         default=None,
         help='transform used, either minmax standard or none')
@@ -74,35 +78,42 @@ parser.add_argument('--learning_rate', metavar='learning_rate', type=float,
         default=1e-4,
         help='learning_rate, small number e.g. 1e-4')
 parser.add_argument('--weight_decay', metavar='weight_decay', type=float, 
-        default=1e-4,
+        default=0.,
         help='weight decay, e.g. 1e-4')
 
 ## Set up args
 args = parser.parse_args()
 print(args)
-
+# Model arguments
 component = args.component
+aleatoric = args.aleatoric
 transform = args.transform
-init_epoch = args.init_epoch
-n_epoch = args.n_epoch
-model_name = args.model_name
-if model_name == None:
-    print("Model name not provided, expect errors - will not be able to save output.")
-seed = args.seed
 n_out = args.n_out
 subset_time = args.subset_time
 if subset_time != None:
     subset_time = tuple(subset_time)
-dropout_rate = args.dropout_rate
-learning_rate = args.learning_rate
+
+# Filename arguments
+model_name = args.model_name
+if model_name == None:
+    print("Model name not provided, expect errors - will not be able to save output.")
 if len(args.filename)==1:
     filename = check_nc(args.filename[0])
 else:
-    filename = check_nc(args.filename)
+    filename = [check_nc(file_i) for file_i in args.filename]
 filestart = args.scaler_filestart
 valid_filename = check_nc(args.valid_filename)
 
-print(f"Training wavenet with {transform} scaler, start from epoch {init_epoch}. \
+# Training arguments
+seed = args.seed
+init_epoch = args.init_epoch
+n_epoch = args.n_epoch
+dropout_rate = args.dropout_rate
+learning_rate = args.learning_rate
+weight_decay = args.weight_decay
+
+# Key info
+print(f"Training {component} wavenet with {transform} scaler, start from epoch {init_epoch}. \
         Seed = {seed}. Using dropout? {dropout_rate}")
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -110,10 +121,9 @@ print(device)
 
 # Set up directories and files
 data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
-#filename = f"{filestart}.nc"
+
 print(f"Training file(s): {filename}")
 # Transform can be minmax or standard or none
-
 if transform == "standard":
     print("Using standard scaler")
     means_filename = f"{filestart}_mean.nc"
@@ -168,10 +178,21 @@ train_dataloader = DataLoader(gw_dataset, batch_size=batch_size,
 valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size,
                               num_workers=8)
 
+# Settings needed if aleatoric
+if aleatoric:
+    n_d=[128,64,32,2]
+    loss_func = neg_log_likelihood_loss      # custom loss function 
+    print("Aleatoric model, predicting mean and std with neg log likelihood loss")
+ 
+else:
+    n_d=[128,64,32,1]
+    loss_func = MSELoss()
+    print("Regular model, predicting output only with MSELoss")
+
 # Set up model
 if init_epoch==0:
     torch.manual_seed(seed)
-    my_model = Wavenet(n_in=82, n_out=n_out, dropout_rate=dropout_rate)
+    my_model = Wavenet(n_d=n_d, n_in=82, n_out=n_out, dropout_rate=dropout_rate)
     losses =[]
     training_losses = []
     validation_losses = []
@@ -201,7 +222,6 @@ optimizer = torch.optim.Adam(my_model.parameters(),
 ## Linearly decrease learning rate over 200 epochs from 1e-3 to 1e-5
 scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, 
         end_factor=0.01, total_iters=200)
-loss_func = MSELoss()
 
 print(f"Running {n_epoch} epochs with {n_batches} batchs of batch size={batch_size} \
         for dataset size {n_samples}")
