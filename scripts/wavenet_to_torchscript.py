@@ -28,8 +28,9 @@ data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
 np_out = 40
 # Transform can be minmax or standard
 transform = "standard"
-means_filename = "atmos_all_12_mean.nc"
-sd_filename = "atmos_all_12_std.nc"
+startfile="atmos_all_12-15"
+means_filename = f"{startfile}_mean.nc"
+sd_filename = f"{startfile}_std.nc"
 transform_dict = {"filename_mean":means_filename, 
                   "filename_sd":sd_filename}
 ds_mean = xr.open_dataset(data_dir + means_filename, decode_times=False )
@@ -59,7 +60,10 @@ ucomp = ds["ucomp"]
 
 
 print("Done.")
-
+lat = lat.to_numpy()
+print(lat)
+lat = lat*np.pi/180.
+print(lat)
 
 # Set batch size 
 batch_size = 128
@@ -83,14 +87,15 @@ transform_vars = {"gwfu_mean": torch.tensor(valid_dataset.gwfu_mean),
                   "ps_sd": torch.tensor(valid_dataset.ps_sd) }
 
 ## Load model weights
-save_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/wavenet_newDS_4xdaily_zonal_standard_seed1/"
-epoch=200
+component="meridional" # meridional or zonal
+save_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/wavenet_4xdaily_4yr_scaling_{component}_standard_seed1/"
+epoch=43
 weights_filename = f"wavenet_weights_epoch{epoch}.pth"
 path_to_weights = f"{save_dir}{weights_filename}"
 model_weights = torch.load(path_to_weights, map_location = device)
 
 ## New instance of model with these weights
-model_for_mima = Wavenet_for_MiMA(n_in=82, n_out=40, transform_vars = transform_vars, use_dropout=False)
+model_for_mima = Wavenet_for_MiMA(n_in=82, n_out=40, transform_vars = transform_vars)
 model_for_mima.load_state_dict(model_weights)
 model_for_mima.double()
 model_for_mima.eval()
@@ -110,8 +115,8 @@ ps = X_raw[:, 81:82]
 print(lat.shape)
 lat_ind = j*torch.ones(batch_size).reshape(batch_size, 1)
 
-print(lat)
-print(lat_ind)
+#print(lat)
+#print(lat_ind)
 
 print("test python")
 Y_pred_mima = model_for_mima(u, T, lat, ps, lat_ind)
@@ -147,8 +152,7 @@ Y_pred_mima = traced_model(u, T, lat, ps, lat_ind)
 Y_pred_mima = traced_model(u, T, lat, ps, lat_ind)
 print("Done")
 
-save_dir="/scratch/users/lauraman/WaveNetPyTorch/models/wavenet_newDS_4xdaily_zonal_standard_seed1/"
-filename = f"{save_dir}/saved_zonal_wavenet.pth"
+filename = f"{save_dir}/saved_{component}_wavenet.pth"
 
 frozen_model.save(filename)
 print(f"Saved to {filename}")
