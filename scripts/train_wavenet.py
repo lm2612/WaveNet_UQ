@@ -5,6 +5,7 @@ import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import random
+import datetime
 
 from torch.nn import MSELoss, Module
 from torch.utils.data import Dataset, DataLoader
@@ -167,6 +168,12 @@ path_to_training_losses = f"{save_dir}{training_losses_filename}"
 validation_losses_filename = f"wavenet_validation_losses.csv"
 path_to_validation_losses = f"{save_dir}{validation_losses_filename}"
 
+# Save information about this training to directory
+info_filename = f"{save_dir}training_info.txt"
+with open(info_filename, 'w') as f_open:
+    f_open.write(f"Start time: {datetime.datetime.now()}")
+    f_open.write(f"Arguments: {args}")
+
 # Set batch size 
 batch_size = 2048
 n_samples = len(gw_dataset)
@@ -225,7 +232,7 @@ scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0,
 
 print(f"Running {n_epoch} epochs with {n_batches} batchs of batch size={batch_size} \
         for dataset size {n_samples}")
-
+print(f"Start: {datetime.datetime.now()}")
 ### TRAINING LOOP ###
 for ep in range(init_epoch+1, n_epoch):
     i = 0
@@ -290,4 +297,5 @@ weights_filename = f"wavenet_weights.pth"
 path_to_weights = f"{save_dir}{weights_filename}"
 torch.save(my_model.state_dict(), path_to_weights)
 
+print(f"End: {datetime.datetime.now()}")
 
