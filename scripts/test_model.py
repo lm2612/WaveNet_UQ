@@ -14,84 +14,108 @@ import sys
 sys.path.append('../src/')
 from Wavenet import Wavenet
 from GravityWavesDataset import GravityWavesDataset
+from utils import get_best_epoch, check_nc
 
 import argparse
 
-# Get run directory from argparser
-parser = argparse.ArgumentParser(description='Test wavenet')
-parser.add_argument('--transform', metavar='transform', type=str, default=None,
-                                                           help='transform used, either minmax standard or none')
-parser.add_argument('--model_name', metavar='model_name', type=str, 
-                                                           help='name modelfor saving')
-parser.add_argument('--epoch', metavar='epoch', type=str, 
-                                                           help='epoch to use')
-parser.add_argument('--subset_time', metavar='subset_time', type=int, nargs='+', default=None,
-                                              help='subset of data to use. Either None or tuple as x1 x2 \
-                                                      e.g. (150, 240) for JJA. Currently only contininous time slicing \
-                                                      can be implemented. Will allow (-30,60) for DJF')
-parser.add_argument('--train_dir', metavar='train_dir', type=str, default="/scratch/users/lauraman/MiMA/runs/train_wavenet/",
-                help='directory for training data, required for scaling appropriately')
-parser.add_argument('--train_filename', metavar='train_filename', type=str, default="atmos_daily_0",
-        help='filename for training data, required for scaling appropriately. should be either atmos_daily_0 or atmos_all_12')
-parser.add_argument('--test_dir', metavar='test_dir', type=str, default="/scratch/users/lauraman/MiMA/runs/train_wavenet/",
-                help='directory for test data')
-parser.add_argument('--test_filename', metavar='test_filename', type=str, default="atmos_daily_2",
-        help='filename for testing')
-parser.add_argument('--save_filename', metavar='save_filename', type=str, default="atmos_daily_2",
-        help='filename for saving')
+# Get arguments from argparser
+parser = argparse.ArgumentParser(description='Test wavenet offline')
 
+## Arguments that define the model/data
+parser.add_argument('--component', metavar='component', type=str,
+        default="zonal",
+        help='directional component of gwd to predict, either zonal \
+                or meridional. Default is zonal')
+parser.add_argument('--aleatoric', action=argparse.BooleanOptionalAction,
+        help='turns on aleatoric uncertainty, meaning model produces mean \
+                 and std. Loss function is log likelihood rather than MSE')
+parser.add_argument('--transform', metavar='transform', type=str,
+        default=None,
+        help='transform used, either minmax standard or none')
+parser.add_argument('--n_out', metavar='n_out', type=int, default=40,
+        help='number of levels to predict up to 40 (max 40). e.g. 33 to \
+                ignore zero levels')
+parser.add_argument('--subset_time', metavar='subset_time', type=int,
+        nargs='+', default=None,
+        help='subset of data to use. Either None or tuple as x1 x2 \
+                e.g. (150, 240) for JJA. Currently only contininous \
+                time slicing can be implemented. Will allow (-30,60) for DJF')
 
+## File names for training, valid, scaling and saving
+parser.add_argument('--model_name', metavar='model_name', type=str,
+        help='name of model for saving (used to create new dir)')
+parser.add_argument('--filename', metavar='filename', type=str,
+        nargs='+', default="atmos_all_12",
+        help='filename for testing data, can be multiple files. \
+                File suffix should be .nc and will be added if not present here')
+parser.add_argument('--scaler_filestart', metavar='scaler_filestart',
+        type=str, default="atmos_all_12",
+        help='start of filename for files containing means and std \
+                for scaling:  should be consistent with training data \
+                e.g. atmos_all_12')
 
-
+## Set up args
 args = parser.parse_args()
 print(args)
+# Model arguments
+component = args.component
+aleatoric = args.aleatoric
 transform = args.transform
-model_name = args.model_name
-epoch = args.epoch
+n_out = args.n_out
 subset_time = args.subset_time
 if subset_time != None:
     subset_time = tuple(subset_time)
-train_dir = args.train_dir
-test_dir = args.test_dir
-train_filestart = args.train_filename
-test_filestart = args.test_filename
-save_filestart = args.save_filename
+
+# Filename arguments
+model_name = args.model_name
+if model_name == None:
+    print("Model name not provided, expect errors - will not be able to save output.")
+if len(args.filename)==1:
+    filename = check_nc(args.filename[0])
+else:
+    filename = [check_nc(file_i) for file_i in args.filename]
+scaler_filestart = args.scaler_filestart
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
-model_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"
-
 # Set up directories and files
-transform_dir = train_dir
-
+model_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"   # models saved here
+transform_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"           # orig training data here
+test_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/AD99_run/"           # test data saved here
 if transform == "standard":
     print("Using standard scaler")
-    means_filename = f"{train_filestart}_mean.nc"
-    sd_filename = f"{train_filestart}_std.nc"
+    means_filename = f"{scaler_filestart}_mean.nc"
+    sd_filename = f"{scaler_filestart}_std.nc"
     transform_dict = {"filename_mean":means_filename,
                       "filename_sd":sd_filename}
 elif transform == "minmax":
     print("Using min-max scaler")
-    min_filename = f"{train_filestart}_min.nc"
-    max_filename = f"{train_filestart}_max.nc"
+    min_filename = f"{scaler_filestart}_min.nc"
+    max_filename = f"{scaler_filestart}_max.nc"
     transform_dict = {"filename_min":min_filename,
                       "filename_max":max_filename}
 
 transform_dict["transform_dir"] = transform_dir
-print(f"Using transform from {transform_dir}/{train_filestart}.nc")
-print(f"Test file is {test_dir}/{test_filestart}.nc")
+print(f"Using transform from {transform_dir}/{scaler_filestart}*.nc")
+print(f"Test data is in {test_dir}. {filename}")
 
 print("Loading test dataset into memory.")
 
 # Test set
 np_out = 40
-test_filename = f"{test_filestart}.nc"
-test_dataset = GravityWavesDataset(test_dir, test_filename,
+test_dataset = GravityWavesDataset(test_dir, filename,
                                    npfull_out=np_out,
+                                   subset_time=subset_time,
                                    transform = transform,
-                                   transform_dict = transform_dict)
+                                   transform_dict = transform_dict,
+                                   component = component)
 print("Data loaded.")
+
+
+# Get model with lowest validation error 
+epoch = get_best_epoch(model_dir)
+print(f"Model with lowest validation error is epoch {epoch}")
 
 model_filename = f"wavenet_model.pth"
 path_to_model = f"{model_dir}{model_filename}"
@@ -99,8 +123,8 @@ weights_filename = f"wavenet_weights_epoch{epoch}.pth"
 path_to_weights = f"{model_dir}{weights_filename}"
 
 print(f"Loading model and weights: {path_to_model}, {path_to_weights}")
-my_model = torch.load(path_to_model)
-model_weights = torch.load(path_to_weights)
+my_model = torch.load(path_to_model,  map_location = device)
+model_weights = torch.load(path_to_weights,  map_location = device)
 
 my_model.load_state_dict(model_weights)
 my_model.to(device)
@@ -134,51 +158,12 @@ pfull_in = np.concatenate( (pfull,
                                       np.nan])) )
 npfull_in = len(pfull_in)
 
-# Set up DataArrays to save
-Y_pred_scaled_save = xr.DataArray(np.zeros((ntime, npfull_out, nlat, nlon)), 
-                                coords={ 'time':time,
-                                         'pfull':pfull,
-                                         'lat':lat,
-                                         'lon':lon },
-                                dims=['time', 'pfull', 'lat', 'lon'] ,
-                                name="Y_pred_scaled" )
-Y_truth_scaled_save = xr.DataArray(np.zeros((ntime, npfull_out, nlat, nlon)), 
-                                coords={ 'time':time,
-                                         'pfull':pfull,
-                                         'lat':lat,
-                                         'lon':lon },
-                                dims=['time', 'pfull', 'lat', 'lon'] ,
-                                name="Y_truth_scaled" )
-X_scaled_save = xr.DataArray(np.zeros((ntime, npfull_in, nlat, nlon)), 
-                                coords={ 'time':time,
-                                         'pfull_in':pfull_in,
-                                         'lat':lat,
-                                         'lon':lon },
-                                dims=['time', 'pfull_in', 'lat', 'lon'] ,
-                                name="X_scaled" )
-
-Y_pred_save = xr.DataArray(np.zeros((ntime, npfull_out, nlat, nlon)), 
-                                coords={ 'time':time,
-                                         'pfull':pfull,
-                                         'lat':lat,
-                                         'lon':lon },
-                                dims=['time', 'pfull', 'lat', 'lon'] ,
-                                name="Y_pred" )
-Y_truth_save = xr.DataArray(np.zeros((ntime, npfull_out, nlat, nlon)), 
-                                coords={ 'time':time,
-                                         'pfull':pfull,
-                                         'lat':lat,
-                                         'lon':lon },
-                                dims=['time', 'pfull', 'lat', 'lon'] ,
-                                name="Y_truth" )
-X_save = xr.DataArray(np.zeros((ntime, npfull_in, nlat, nlon)), 
-                                coords={ 'time':time,
-                                         'pfull_in':pfull_in,
-                                         'lat':lat,
-                                         'lon':lon },
-                                dims=['time', 'pfull_in', 'lat', 'lon'] ,
-                                name="X" )
-        
+## Create empty data arrays to save predictions to
+gwfu_pred = xr.zeros_like(test_dataset.ds["gwfu_cgwd"])
+gwfu_pred.name = "gwfu_pred"
+gwfu_pred_scaled = xr.zeros_like(test_dataset.ds["gwfu_cgwd"])
+gwfu_pred_scaled.name = "gwfu_pred_scaled"
+                                
 ## Make predictions for all timesteps in test_dataset [1 yr of data]
 print("Arrays set up. Predicting on all points in test dataset")
 time_ind = 0
@@ -186,15 +171,18 @@ lat_ind = 0
 ## fill all lons at once, with batch size = nlon
 for batch in test_dataloader:
         X_scaled, Y_scaled = batch["X"].squeeze().to(device), batch["Y"].squeeze().to('cpu')
-        Y_pred_scaled = my_model(X_scaled).detach().to('cpu')
+        Y_pred_scaled = my_model(X_scaled).squeeze().detach().to('cpu')
         X_scaled = X_scaled.to('cpu')
 
-        # Save scaled variables, after reshaping into correct size
-        Y_pred_scaled_save[time_ind, :, lat_ind:lat_ind+nlat_per_batch, :] = Y_pred_scaled.T.reshape(npfull_out, nlat_per_batch, nlon)
-        
-        # Inverse scaler
-        _, Y_pred = test_dataset.inverse_scaler(X_scaled, Y_pred_scaled)
-        Y_pred_save[time_ind, :, lat_ind:lat_ind+nlat_per_batch, :] = Y_pred.T.reshape(npfull_out, nlat_per_batch, nlon)
+        # Reshape
+        Y_pred_reshaped = Y_pred_scaled.T.reshape(npfull_out, nlat_per_batch, nlon)
+        # Save scaled variable for future
+        gwfu_pred_scaled[time_ind, :, lat_ind:lat_ind+nlat_per_batch, :] = Y_pred_reshaped
+        # Unscale and save unscaled variable
+        Y_pred = test_dataset.inverse_standard_scaler(Y_pred_reshaped, 
+                                           test_dataset.gwfu_mean[0, :, lat_ind:lat_ind+nlat_per_batch], 
+                                           test_dataset.gwfu_sd[0, :, lat_ind:lat_ind+nlat_per_batch])
+        gwfu_pred[time_ind, :, lat_ind:lat_ind+nlat_per_batch, :] = Y_pred 
 
         lat_ind += nlat_per_batch
         
@@ -204,20 +192,20 @@ for batch in test_dataloader:
             lat_ind = 0
         
         
-        if time_ind % 30 == 0:
-            print(f"Calculated up to time={time_ind}")
-            save_as = f"{model_dir}/{save_filestart}_epoch{epoch}_tmp_{time_ind}.nc"
-            ds = Y_pred_scaled_save.to_dataset(name = "Y_pred_scaled")
-            ds["Y_pred"] = Y_pred_save
-            ds.to_netcdf(save_as)
-            print(f"Saved as {save_as}... continuing")
-        
         
 print("All predictions done. Saving to netcdf")
+## What to save as
+if len(args.filename)==1:
+    save_filestart = filename.removesuffix(".nc")
+else:
+    save_filestart = filename[0].removesuffix(".nc")
+    year_indices = [file.removesuffix(".nc").split("_")[-1] for file in filename]
+    save_filestart = f"{save_filestart}-{year_indices[-1]}"
 
-save_as = f"{model_dir}/{save_filestart}_epoch{epoch}.nc"
-ds = Y_pred_scaled_save.to_dataset(name = "Y_pred_scaled")
-ds["Y_pred"] = Y_pred_save
+
+save_as = f"{model_dir}/{save_filestart}.nc"
+ds = gwfu_pred.to_dataset(name = "gwfu_pred")
+ds["gwfu_pred_scaled"] = gwfu_pred_scaled
 ds.to_netcdf(save_as)
 print(f"Done. Saved as {save_as}")
 
