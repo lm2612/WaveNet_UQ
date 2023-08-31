@@ -2,7 +2,7 @@ import torch
 
 
 def neg_log_likelihood(Y, mu, sigma):
-    return -torch.sum((Y-mu)**2/(2*sigma**2))
+    return -torch.sum( torch.log(sigma**2)/2 + (Y-mu)**2/(2*sigma**2))
 
 def neg_log_likelihood_loss(Y_pred, Y):
     mu = Y_pred[:, 0, :]
