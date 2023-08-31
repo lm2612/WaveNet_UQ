@@ -26,8 +26,12 @@ def enable_dropout(model):
         else:
             m.eval()
 
-def get_best_epoch(model_dir, validation_losses_filename="wavenet_validation_losses.csv"):
+def get_best_epoch(model_dir, validation_losses_filename="wavenet_validation_losses.csv", min_epochs=10):
     validation_losses = np.loadtxt(f"{model_dir}{validation_losses_filename}")
-    return(np.argmin(validation_losses))
+    best_epoch = np.argmin(validation_losses)
+    if best_epoch <= min_epochs:
+        return best_epoch
+    else:
+        return (min_epochs + np.argmin(validation_losses[min_epochs:]) ) 
 
 
