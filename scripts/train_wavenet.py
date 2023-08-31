@@ -181,9 +181,9 @@ n_batches = n_samples//batch_size
 
 # Set up dataloaders
 train_dataloader = DataLoader(gw_dataset, batch_size=batch_size,
-                              shuffle=True, num_workers=8, pin_memory=False)
+                              shuffle=True, num_workers=8, pin_memory=True)
 valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size,
-                              num_workers=8)
+                              num_workers=0, pin_memory=True)
 
 # Settings needed if aleatoric
 if aleatoric:
@@ -198,37 +198,59 @@ else:
 
 # Set up model
 if init_epoch==0:
+    print(f"Setting up model")
+    np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     my_model = Wavenet(n_d=n_d, n_in=82, n_out=n_out, dropout_rate=dropout_rate)
     losses =[]
     training_losses = []
     validation_losses = []
     torch.save(my_model, path_to_model)
 
+    # Set up optimizer and scheduler
+    optimizer = torch.optim.Adam(my_model.parameters(),
+        lr=learning_rate,
+        weight_decay=weight_decay)
+    # Linearly decrease learning rate over 200 epochs from 1e-3 to 1e-5
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0,
+        end_factor=0.01, total_iters=200)
+
 else:
-    # Load model
-    # Save model at end of each epoch
+    print(f"Loading model and checkpoint from epoch {init_epoch}")
+    # Load model at this epoch
     weights_filename = f"wavenet_weights_epoch{init_epoch}.pth"
     path_to_weights = f"{save_dir}{weights_filename}"
 
-    my_model = torch.load(path_to_model)
-    model_weights = torch.load(path_to_weights)
+    my_model = torch.load(path_to_model, map_location=device)
+    model_weights = torch.load(path_to_weights,  map_location=device)
     my_model.load_state_dict(model_weights)
 
+    # Load checkpoint at this epoch and set random state, optimizer and scheduler
+    path_to_checkpoint = f"{save_dir}checkpoint_epoch{init_epoch}.pth"
+    checkpoint = torch.load(path_to_checkpoint, map_location='cpu')
+    torch.set_rng_state(checkpoint['cpu_rng_state'])
+    torch.cuda.set_rng_state(checkpoint['gpu_rng_state'])
+    np.random.set_state(checkpoint['numpy_rng_state'])
+    random.set_state(checkpoint['py_rng_state'])
+
+    # Set up optimizer and schduler, continued from previous epoch
+    optimizer = torch.optim.Adam(my_model.parameters(),
+        lr=learning_rate,
+        weight_decay=weight_decay)
+    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0,
+        end_factor=0.01, total_iters=200)
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    scheduler.load_state_dict(checkpoint['scheduler'])
+
+    # Continue tracking loss, training loss and validation losses
     losses = np.loadtxt(path_to_losses).tolist()
     training_losses = np.loadtxt(path_to_training_losses).tolist()
     validation_losses = np.loadtxt(path_to_validation_losses).tolist()
 
 
 my_model = my_model.to(device)
-
-# Set up optimizer and loss function
-optimizer = torch.optim.Adam(my_model.parameters(),
-        lr=learning_rate, 
-        weight_decay=weight_decay)
-## Linearly decrease learning rate over 200 epochs from 1e-3 to 1e-5
-scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0, 
-        end_factor=0.01, total_iters=200)
 
 print(f"Running {n_epoch} epochs with {n_batches} batchs of batch size={batch_size} \
         for dataset size {n_samples}")
@@ -281,10 +303,23 @@ for ep in range(init_epoch+1, n_epoch):
     training_losses.append(training_loss)
     validation_losses.append(valid_loss)
 
-    # Save model at end of each epoch
+    # Save model at end of each epoch (redundant, will soon remove this and keep checkpoint only)
     weights_filename = f"wavenet_weights_epoch{ep}.pth"
     path_to_weights = f"{save_dir}{weights_filename}"
     torch.save(my_model.state_dict(), path_to_weights)
+
+    # Save checkpoint at the end of each epoch 
+    path_to_checkpoint = f"{save_dir}checkpoint_epoch{ep}.pth"
+    checkpoint  = {'cpu_rng_state': torch.get_rng_state(),
+                      'gpu_rng_state': torch.cuda.get_rng_state(),
+                      'numpy_rng_state': np.random.get_state(),
+                      'py_rng_state': random.getstate(),
+                      'optimizer' : optimizer.state_dict(),
+                      'scheduler': scheduler.state_dict(),
+                      'model_weights': my_model.state_dict()
+                      }
+    torch.save(checkpoint, path_to_checkpoint)
+
     # Save losses
     np.savetxt(path_to_losses, np.array(losses), delimiter=",")
     np.savetxt(path_to_training_losses, np.array(training_losses), delimiter=",")
