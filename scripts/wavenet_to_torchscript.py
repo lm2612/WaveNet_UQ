@@ -12,86 +12,127 @@ from torch.utils.data import Dataset, DataLoader
 
 import sys
 sys.path.append('../src/')
-from utils import count_parameters
-from utils import init_xavier 
+from utils import *
 from Wavenet_for_MiMA import Wavenet_for_MiMA
 from GravityWavesDataset import GravityWavesDataset 
+import argparse
+
+# Get arguments from argparser
+parser = argparse.ArgumentParser(description='Save wavenet pytorch model to torchscript')
+
+## Arguments that define the model/data
+parser.add_argument('--component', metavar='component', type=str,
+        default="zonal",
+        help='directional component of gwd to predict, either zonal \
+                or meridional. Default is zonal')
+parser.add_argument('--aleatoric', action=argparse.BooleanOptionalAction,
+        help='turns on aleatoric uncertainty, meaning model produces mean \
+                 and std. Loss function is log likelihood rather than MSE')
+parser.add_argument('--transform', metavar='transform', type=str,
+        default=None,
+        help='transform used, either minmax standard or none')
+parser.add_argument('--n_out', metavar='n_out', type=int, default=40,
+        help='number of levels to predict up to 40 (max 40). e.g. 33 to \
+                ignore zero levels')
+
+## File names for training, valid, scaling and saving
+parser.add_argument('--model_name', metavar='model_name', type=str,
+        help='name of model for saving (used to create new dir)')
+parser.add_argument('--filename', metavar='filename', type=str,
+        nargs='+', default="atmos_all_11",
+        help='filename for testing the model runs in torchscript (relatively unimportant) \
+                File suffix should be .nc and will be added if not present here')
+parser.add_argument('--scaler_filestart', metavar='scaler_filestart',
+        type=str, default="atmos_all_12",
+        help='start of filename for files containing means and std \
+                for scaling:  should be consistent with training data \
+                e.g. atmos_all_12')
+
+
+## Set up args
+args = parser.parse_args()
+print(args)
+# Model arguments
+component = args.component
+aleatoric = args.aleatoric
+transform = args.transform
+n_out = args.n_out
+
+# Filename arguments
+model_name = args.model_name
+
+if len(args.filename)==1:
+    filename = check_nc(args.filename[0])
+else:
+    filename = [check_nc(file_i) for file_i in args.filename]
+filestart = args.scaler_filestart
+
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device="cpu"
 print(device)
 
-
 data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
-
 np_out = 40
-# Transform can be minmax or standard
-transform = "standard"
-startfile="atmos_all_12-15"
-means_filename = f"{startfile}_mean.nc"
-sd_filename = f"{startfile}_std.nc"
-transform_dict = {"filename_mean":means_filename, 
-                  "filename_sd":sd_filename}
-ds_mean = xr.open_dataset(data_dir + means_filename, decode_times=False )
-ds_sd = xr.open_dataset(data_dir + sd_filename, decode_times=False )
-gwfu_mean = ds_mean["gwfu_cgwd"] #.mean(axis=(2, 3))
-gwfu_sd = ds_sd["gwfu_cgwd"]
 
-# Test set - entirely unseen to model (valid dataset is atmos_daily_11)
-valid_filename = "atmos_daily_10.nc"
-subset_time=(0,90)
-valid_dataset = GravityWavesDataset(data_dir, valid_filename, npfull_out=np_out,
+# Transform can be minmax or standard or none
+if transform == "standard":
+    print("Using standard scaler")
+    means_filename = f"{filestart}_mean.nc"
+    sd_filename = f"{filestart}_std.nc"
+    transform_dict = {"filename_mean":means_filename,
+                      "filename_sd":sd_filename}
+
+elif transform == "minmax":
+    print("Using min-max scaler")
+    min_filename = f"{filestart}_min.nc"
+    max_filename = f"{filestart}_max.nc"
+    transform_dict = {"filename_min":min_filename,
+                      "filename_max":max_filename}
+
+# Test set, supposed to be unseen to model but this is unimportant and is purely for checking
+# array sizes. We only take first 20 timesteps.
+gw_dataset = GravityWavesDataset(data_dir, filename,
+                                 npfull_out =n_out,
+                                 subset_time = (0,20),
                                  transform = transform,
-                                 transform_dict = transform_dict, 
-                                    subset_time=(0,90))
-valid_dataset_raw =  GravityWavesDataset(data_dir, valid_filename, npfull_out=np_out, 
-                                         subset_time=(0,90))
-path_to_file = data_dir + valid_filename
-ds = xr.open_dataset(path_to_file, decode_times=False )
-# Get dimensions
-lon = ds["lon"]
-lat = ds["lat"]
-time = ds["time"]
-pfull = ds["pfull"]
-ps = ds["ps"]
-gwfu = ds["gwfu_cgwd"]
-ucomp = ds["ucomp"]
+                                 transform_dict = transform_dict,
+                                 component = component)
+# Also open raw dataset with no transform
+gw_dataset_raw = GravityWavesDataset(data_dir, filename,
+                                 npfull_out =n_out,
+                                 subset_time = (0,20),
+                                 component = component)
 
-
-print("Done.")
-lat = lat.to_numpy()
-print(lat)
-lat = lat*np.pi/180.
-print(lat)
-
-# Set batch size 
+# Set batch size: 128 for all lons at once 
 batch_size = 128
-n_samples = len(valid_dataset)
+n_samples = len(gw_dataset)
 n_batches = n_samples//batch_size
 
 # Set up dataloader for testing
-valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size,
+gw_dataloader = DataLoader(gw_dataset, batch_size=batch_size,
                               shuffle=False, num_workers=0, pin_memory=False)
-valid_dataloader_raw = DataLoader(valid_dataset_raw, batch_size=batch_size,
-                              num_workers=0)
+gw_dataloader_raw = DataLoader(gw_dataset_raw, batch_size=batch_size,
+                              shuffle=False, num_workers=0, pin_memory=False)
 
-
-transform_vars = {"gwfu_mean": torch.tensor(valid_dataset.gwfu_mean),
-                  "u_mean": torch.tensor(valid_dataset.u_mean),
-                  "T_mean": torch.tensor(valid_dataset.T_mean),
-                  "ps_mean": torch.tensor(valid_dataset.ps_mean),
-                  "gwfu_sd": torch.tensor(valid_dataset.gwfu_sd),
-                  "u_sd": torch.tensor(valid_dataset.u_sd),
-                  "T_sd": torch.tensor(valid_dataset.T_sd),
-                  "ps_sd": torch.tensor(valid_dataset.ps_sd) }
+# Get transform info to save into model
+transform_vars = {"gwfu_mean": torch.tensor(gw_dataset.gwfu_mean),
+                  "u_mean": torch.tensor(gw_dataset.u_mean),
+                  "T_mean": torch.tensor(gw_dataset.T_mean),
+                  "ps_mean": torch.tensor(gw_dataset.ps_mean),
+                  "gwfu_sd": torch.tensor(gw_dataset.gwfu_sd),
+                  "u_sd": torch.tensor(gw_dataset.u_sd),
+                  "T_sd": torch.tensor(gw_dataset.T_sd),
+                  "ps_sd": torch.tensor(gw_dataset.ps_sd) }
 
 ## Load model weights
-component="meridional" # meridional or zonal
-save_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/wavenet_4xdaily_4yr_scaling_{component}_standard_seed1/"
-epoch=43
+model_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"
+epoch = get_best_epoch(model_dir)
+print(f"Model with lowest validation error is epoch {epoch}")
+
 weights_filename = f"wavenet_weights_epoch{epoch}.pth"
-path_to_weights = f"{save_dir}{weights_filename}"
+path_to_weights = f"{model_dir}{weights_filename}"
 model_weights = torch.load(path_to_weights, map_location = device)
 
 ## New instance of model with these weights
@@ -102,57 +143,52 @@ model_for_mima.eval()
 
 
 ## Test model works
-batch = next(iter(valid_dataloader_raw))
+batch = next(iter(gw_dataloader_raw))
 X_raw, Y_raw = batch["X"].squeeze(), batch["Y"].squeeze() 
 X_raw = X_raw.double()
 j = 0
 # mima model - pass in raw u,T,lat,ps and lat ind, scaling done internally
 u = X_raw[:, :40]
 T = X_raw[:, 40:80]
-lat = X_raw[:, 80:81]
+lat = X_raw[:, 80:81]*np.pi/180.
 ps = X_raw[:, 81:82]
-
-print(lat.shape)
 lat_ind = j*torch.ones(batch_size).reshape(batch_size, 1)
 
-#print(lat)
-#print(lat_ind)
-
-print("test python")
+print("Test python version of model for single lat ind")
 Y_pred_mima = model_for_mima(u, T, lat, ps, lat_ind)
-print("success")
+print("Success")
+print(Y_pred_mima)
 
 ## Try two indices at once, as needed
-batch = next(iter(valid_dataloader_raw))
+batch = next(iter(gw_dataloader_raw))
 X_raw, Y_raw = batch["X"].squeeze(), batch["Y"].squeeze()
 X_raw = X_raw.double()
 j = 1
 # mima model - pass in raw u,T,lat,ps and lat ind, scaling done internally
 u = torch.concat((u, X_raw[:, :40]), dim=0)
 T = torch.concat((T, X_raw[:, 40:80]),  dim=0)
-lat = torch.concat((lat, X_raw[:, 80:81]), dim=0)
+lat = torch.concat((lat, X_raw[:, 80:81]*np.pi/180.), dim=0)
 ps = torch.concat((ps, X_raw[:, 81:82]), dim=0)
-
 lat_ind = torch.concat((lat_ind, j*torch.ones(batch_size).reshape(batch_size, 1) ), dim=0)
 
-print(lat)
-print(lat_ind)
-print("test python, x2 lat inds")
+print("Test python version again with multiple lat inds")
 Y_pred_mima = model_for_mima(u, T, lat, ps, lat_ind)
-print("success")
+print("Success")
+print(Y_pred_mima)
 
 ## Save model as torchscript
+print("Exporting model to torchscript")
 traced_model = torch.jit.trace(model_for_mima, example_inputs = (u, T, lat, ps, lat_ind ) )
 frozen_model = torch.jit.freeze(traced_model)
 
 ## Test as traced model
-print("Test traced model")
+print("Testing traced model several times")
 Y_pred_mima = traced_model(u, T, lat, ps, lat_ind)
 Y_pred_mima = traced_model(u, T, lat, ps, lat_ind)
 Y_pred_mima = traced_model(u, T, lat, ps, lat_ind)
 print("Done")
 
-filename = f"{save_dir}/saved_{component}_wavenet.pth"
+filename = f"{model_dir}/{component}_wavenet.pth"
 
 frozen_model.save(filename)
 print(f"Saved to {filename}")
