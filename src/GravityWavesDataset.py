@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import dask
 
 import torch
 from torch.utils.data import Dataset
@@ -36,20 +37,49 @@ class GravityWavesDataset(Dataset):
             print(f"Setting up dataset from multiple files. Starting with {filename0}")
 
         path_to_file = data_dir + filename0
-        self.ds = xr.open_dataset(path_to_file, decode_times=False )
+        self.ds = xr.open_dataset(path_to_file, decode_times=False , chunks={})
+        if subset_time != None:
+            self.ds = self.ds.isel(time=slice(time_start,time_end))
+
+        # Get variables 
+        if component.lower() == "zonal":
+            wind_comp = "ucomp"
+            gwf_comp = "gwfu_cgwd"
+        elif component.lower() == "meridional":
+            wind_comp = "vcomp"
+            gwf_comp = "gwfv_cgwd"
+
+        if isinstance(filename, str):
+            print(f"Done opening single file")
+        else:
+            print(f"Done opening first file, now opening rest and concatenating")
+            n_files = len(filename)
+            print(f"Number of files: {n_files}")
+            for file_no in range(1, n_files):
+                filename_n = filename[file_no]
+                print(f"Setting up {filename_n}")
+                path_to_file = data_dir + filename_n
+                ds_n = xr.open_dataset(path_to_file, decode_times=False, chunks={})
+                if subset_time != None:
+                    ds_n = ds_n.isel(time=slice(time_start,time_end))
+                self.ds = xr.concat((self.ds, ds_n), dim="time", data_vars=[gwf_comp, wind_comp, "temp", "ps"] )
+                
+            print(f"Done opening and concatenating all files into one xarray dataset.")
+
+ 
         # Get dimensions
         self.lon = self.ds["lon"]
         self.lat = self.ds["lat"]
         self.time = self.ds["time"]
         self.pfull = self.ds["pfull"]
-        
+
         self.ntime = len(self.time)
         self.npfull_in = len(self.pfull)
         self.nlat = len(self.lat)
         self.nlon = len(self.lon)
         self.npfull_out = npfull_out
 
-        print(f"Dataset has ntime={self.ntime}")
+        print(f"Dataset has ntime={self.ntime}. Getting variables.")
         # Get variables 
         if component.lower() == "zonal":
             wind_comp = "ucomp"
@@ -62,38 +92,6 @@ class GravityWavesDataset(Dataset):
         self.ucomp = self.ds[wind_comp]
         self.temp = self.ds["temp"]
         self.ps = self.ds["ps"]
-        
-        if subset_time != None:
-            time_start = subset_time[0]
-            time_end = subset_time[1]
-            # Update time xarray
-            self.time = self.time[time_start:time_end]
-            self.ntime = len(self.time)
-            # Update variables
-            self.ucomp = self.ucomp[time_start:time_end]
-            self.temp = self.temp[time_start:time_end]
-            self.gwfu = self.gwfu[time_start:time_end]
-            self.ps = self.ps[time_start:time_end]
-            print(f"Data is subset by time from {time_start} to {time_end}. ntime={self.ntime}")
-        
-        if isinstance(filename, str):
-            print(f"Done opening single file")
-        else:
-            print(f"Done opening first file, now opening rest and concatenating")
-            n_files = len(filename)
-            print(f"Number of files: {n_files}")
-            for file_no in range(1, n_files):
-                filename_n = filename[file_no]
-                print(f"Setting up {filename_n}")
-                path_to_file = data_dir + filename_n
-                self.ds = xr.open_dataset(path_to_file, decode_times=False )
-                self.time = xr.concat((self.time, self.ds["time"]), dim="time")
-                self.gwfu = xr.concat((self.gwfu, self.ds[gwf_comp]), dim="time")
-                self.ucomp = xr.concat((self.ucomp, self.ds[wind_comp]), dim="time")
-                self.temp = xr.concat((self.temp, self.ds["temp"]), dim="time")
-                self.ps = xr.concat((self.ps, self.ds["ps"]), dim="time")
-                self.ntime = len(self.time)
-            print(f"Done opening all files. Full dataset has ntime={self.ntime}")
 
         # Note we do not need pressure levels, give this a dummy 1D value
         self.dummy_val = np.array([np.nan])
