@@ -15,7 +15,6 @@ for seed in args.seed:
     print(f"Opening file {filename}")
     ds = xr.open_dataset(filename, decode_times=False)
     QBO_winds = ds.ucomp.sel(pfull=10, method="nearest")
-    print(QBO_winds[:100])
     periods, amplitudes = get_QBO_periods_amplitudes(QBO_winds, 5*30)
 
     print(periods, amplitudes)
