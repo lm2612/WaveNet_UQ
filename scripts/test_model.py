@@ -159,10 +159,15 @@ pfull_in = np.concatenate( (pfull,
 npfull_in = len(pfull_in)
 
 ## Create empty data arrays to save predictions to
-gwfu_pred = xr.zeros_like(test_dataset.ds["gwfu_cgwd"])
-gwfu_pred.name = "gwfu_pred"
-gwfu_pred_scaled = xr.zeros_like(test_dataset.ds["gwfu_cgwd"])
-gwfu_pred_scaled.name = "gwfu_pred_scaled"
+# Get variables 
+if component.lower() == "zonal":
+    gwf_comp = "gwfu_cgwd"
+elif component.lower() == "meridional":
+    gwf_comp = "gwfv_cgwd"
+gwfu_pred = xr.zeros_like(test_dataset.ds[gwf_comp])
+gwfu_pred.name = f"{gwf_comp}_pred"
+gwfu_pred_scaled = xr.zeros_like(test_dataset.ds[gwf_comp])
+gwfu_pred_scaled.name =  f"{gwf_comp}_pred_scaled"
                                 
 ## Make predictions for all timesteps in test_dataset [1 yr of data]
 print("Arrays set up. Predicting on all points in test dataset")
@@ -204,8 +209,8 @@ else:
 
 
 save_as = f"{model_dir}/{save_filestart}.nc"
-ds = gwfu_pred.to_dataset(name = "gwfu_pred")
-ds["gwfu_pred_scaled"] = gwfu_pred_scaled
+ds = gwfu_pred.to_dataset(name = f"{gwf_comp}_pred")
+ds[f"{gwf_comp}_pred_scaled"] = gwfu_pred_scaled
 ds.to_netcdf(save_as)
 print(f"Done. Saved as {save_as}")
 
