@@ -39,7 +39,7 @@ class GravityWavesDataset(Dataset):
         path_to_file = data_dir + filename0
         self.ds = xr.open_dataset(path_to_file, decode_times=False , chunks={})
         if subset_time != None:
-            self.ds = self.ds.isel(time=slice(time_start,time_end))
+            self.ds = self.ds.isel(time=slice(subset_time[0], subset_time[1]))
 
         # Get variables 
         if component.lower() == "zonal":
@@ -61,7 +61,7 @@ class GravityWavesDataset(Dataset):
                 path_to_file = data_dir + filename_n
                 ds_n = xr.open_dataset(path_to_file, decode_times=False, chunks={})
                 if subset_time != None:
-                    ds_n = ds_n.isel(time=slice(time_start,time_end))
+                    ds_n = ds_n.isel(time=slice(subset_time[0], subset_time[1]))
                 self.ds = xr.concat((self.ds, ds_n), dim="time", data_vars=[gwf_comp, wind_comp, "temp", "ps"] )
                 
             print(f"Done opening and concatenating all files into one xarray dataset.")
