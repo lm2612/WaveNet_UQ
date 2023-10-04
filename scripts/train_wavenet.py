@@ -181,15 +181,20 @@ n_batches = n_samples//batch_size
 
 # Set up dataloaders
 train_dataloader = DataLoader(gw_dataset, batch_size=batch_size,
-                              shuffle=True, num_workers=8, pin_memory=True)
+                              shuffle=True, num_workers=4, pin_memory=True)
 valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size,
                               num_workers=0, pin_memory=True)
 
 # Settings needed if aleatoric
 if aleatoric:
     n_d=[128,64,32,2]
-    loss_func = neg_log_likelihood_loss      # custom loss function 
+    NLL_loss_func = torch.nn.GaussianNLLLoss()
+    def loss_func(Y_pred, Y):
+        mu = Y_pred[:, 0, :]
+        std = Y_pred[:, 1, :]
+        return NLL_loss_func(Y, mu, std**2)
     print("Aleatoric model, predicting mean and std with neg log likelihood loss")
+
  
 else:
     n_d=[128,64,32,1]
@@ -202,7 +207,7 @@ if init_epoch==0:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.benchmark = True
     my_model = Wavenet(n_d=n_d, n_in=82, n_out=n_out, dropout_rate=dropout_rate)
     losses =[]
     training_losses = []
@@ -213,10 +218,10 @@ if init_epoch==0:
     optimizer = torch.optim.Adam(my_model.parameters(),
         lr=learning_rate,
         weight_decay=weight_decay)
-    # Linearly decrease learning rate over 200 epochs from 1e-3 to 1e-5
-    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0,
-        end_factor=0.01, total_iters=200)
-
+    # Learning rate scheduler: also tested lr_scheduler.LinearLR(optimizer, start_factor=1.0,
+    #    end_factor=0.001, total_iters=300), lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, threshold=1e-4, factor=0.5,
+            patience=10, cooldown=5, min_lr=5e-6, verbose=True)  
 else:
     print(f"Loading model and checkpoint from epoch {init_epoch}")
     # Load model at this epoch
@@ -233,14 +238,14 @@ else:
     torch.set_rng_state(checkpoint['cpu_rng_state'])
     torch.cuda.set_rng_state(checkpoint['gpu_rng_state'])
     np.random.set_state(checkpoint['numpy_rng_state'])
-    random.set_state(checkpoint['py_rng_state'])
+    random.setstate(checkpoint['py_rng_state'])
 
     # Set up optimizer and schduler, continued from previous epoch
     optimizer = torch.optim.Adam(my_model.parameters(),
         lr=learning_rate,
         weight_decay=weight_decay)
-    scheduler = lr_scheduler.LinearLR(optimizer, start_factor=1.0,
-        end_factor=0.01, total_iters=200)
+    scheduler =  lr_scheduler.ReduceLROnPlateau(optimizer, threshold=1e-4, factor=0.5,
+                        patience=10, cooldown=5, min_lr=5e-6, verbose=True)
     optimizer.load_state_dict(checkpoint['optimizer'])
     scheduler.load_state_dict(checkpoint['scheduler'])
 
@@ -275,10 +280,6 @@ for ep in range(init_epoch+1, n_epoch):
         i+=1
 
     training_loss = training_loss / i
-    before_lr = optimizer.param_groups[0]["lr"]
-    scheduler.step()
-    after_lr = optimizer.param_groups[0]["lr"]
-    print("Epoch %d: ADAM lr %.4f -> %.4f" % (ep, before_lr, after_lr))
     print(f"Training done for epoch {ep}. Validation...")
     
 
@@ -302,6 +303,11 @@ for ep in range(init_epoch+1, n_epoch):
     
     training_losses.append(training_loss)
     validation_losses.append(valid_loss)
+    
+    before_lr = optimizer.param_groups[0]["lr"]
+    scheduler.step(valid_loss)
+    after_lr = optimizer.param_groups[0]["lr"]
+    print("Epoch %d: ADAM lr %.8f -> %.8f" % (ep, before_lr, after_lr))
 
     # Save model at end of each epoch (redundant, will soon remove this and keep checkpoint only)
     weights_filename = f"wavenet_weights_epoch{ep}.pth"
