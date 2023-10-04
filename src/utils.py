@@ -13,6 +13,9 @@ def init_xavier(m):
     if type(m) == nn.Conv2d or type(m) == nn.Linear or type(m) == nn.ConvTranspose2d:
         nn.init.xavier_uniform_(m.weight)
 
+def init_kaiming(m):
+    if type(m) == nn.Conv2d or type(m) == nn.Linear or type(m) == nn.ConvTranspose2d:
+        nn.init.kaiming_uniform_(m.weight)
 
 def count_parameters(model):
     """Returns total number of model parameters """
