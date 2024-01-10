@@ -17,7 +17,6 @@ sys.path.append('../src/')
 from utils import check_nc
 from Wavenet import Wavenet
 from GravityWavesDataset import GravityWavesDataset
-from custom_loss import neg_log_likelihood_loss
 
 import argparse
 
@@ -57,7 +56,7 @@ parser.add_argument('--scaler_filestart', metavar='scaler_filestart',
                 for scaling:  should be consistent with training data \
                 e.g. atmos_all_12')
 parser.add_argument('--valid_filename', metavar='valid_filename',
-        type=str, default="atmos_daily_11",
+        nargs='+', type=str, default="atmos_daily_11",
         help='filename for validation data, e.g. atmos_all_13.\
                 File suffix should be .nc and will be added if not present here')
 
@@ -82,7 +81,7 @@ parser.add_argument('--weight_decay', metavar='weight_decay', type=float,
         default=0.,
         help='weight decay, e.g. 1e-4')
 
-## Set up args
+
 args = parser.parse_args()
 print(args)
 # Model arguments
@@ -103,7 +102,11 @@ if len(args.filename)==1:
 else:
     filename = [check_nc(file_i) for file_i in args.filename]
 filestart = args.scaler_filestart
-valid_filename = check_nc(args.valid_filename)
+if len(args.valid_filename)==1:
+    valid_filename = check_nc(args.valid_filename[0])
+else:
+    valid_filename = [check_nc(file_i) for file_i in args.valid_filename]
+
 
 # Training arguments
 seed = args.seed
@@ -121,8 +124,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # Set up directories and files
-data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
-
+#data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
+data_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
 print(f"Training file(s): {filename}")
 # Transform can be minmax or standard or none
 if transform == "standard":
@@ -187,17 +190,17 @@ valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size,
 
 # Settings needed if aleatoric
 if aleatoric:
-    n_d=[128,64,32,2]
+    n_d = [128,64,32,2]
+    n_ch = 2
     NLL_loss_func = torch.nn.GaussianNLLLoss()
     def loss_func(Y_pred, Y):
         mu = Y_pred[:, 0, :]
         std = Y_pred[:, 1, :]
         return NLL_loss_func(Y, mu, std**2)
     print("Aleatoric model, predicting mean and std with neg log likelihood loss")
-
- 
 else:
-    n_d=[128,64,32,1]
+    n_d = [128,64,32,1]
+    n_ch = 1
     loss_func = MSELoss()
     print("Regular model, predicting output only with MSELoss")
 
@@ -208,7 +211,7 @@ if init_epoch==0:
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
-    my_model = Wavenet(n_d=n_d, n_in=82, n_out=n_out, dropout_rate=dropout_rate)
+    my_model = Wavenet(n_d=n_d, n_in=82, n_out=n_out, n_ch=n_ch, dropout_rate=dropout_rate)
     losses =[]
     training_losses = []
     validation_losses = []
@@ -287,13 +290,14 @@ for ep in range(init_epoch+1, n_epoch):
     i = 0
     valid_loss = 0
     my_model.eval()
-    for batch in valid_dataloader:
-        X, Y = batch["X"].squeeze(), batch["Y"].squeeze()
-        X, Y = X.to(device), Y.to(device)
-        Y_pred = my_model(X).squeeze()
-        err = loss_func(Y_pred, Y)
-        valid_loss += err.item()
-        i+=1
+    with torch.no_grad():
+        for batch in valid_dataloader:
+            X, Y = batch["X"].squeeze(), batch["Y"].squeeze()
+            X, Y = X.to(device), Y.to(device)
+            Y_pred = my_model(X).squeeze()
+            err = loss_func(Y_pred, Y)
+            valid_loss += err.item()
+            i+=1
         
     valid_loss = valid_loss / i
     

@@ -73,7 +73,9 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 device="cpu"
 print(device)
 
-data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
+#data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
+data_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
+
 np_out = 40
 
 # Transform can be minmax or standard or none
@@ -191,4 +193,4 @@ print("Done")
 filename = f"{model_dir}/{component}_wavenet.pth"
 
 frozen_model.save(filename)
-print(f"Saved to {filename}")
+rint(f"Saved to {filename}")

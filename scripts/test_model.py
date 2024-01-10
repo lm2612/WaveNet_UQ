@@ -81,8 +81,8 @@ print(device)
 
 # Set up directories and files
 model_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"   # models saved here
-transform_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"           # orig training data here
-test_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/AD99_run/"           # test data saved here
+transform_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"     # standard scalar files saved here
+test_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"          # test data saved here
 if transform == "standard":
     print("Using standard scaler")
     means_filename = f"{scaler_filestart}_mean.nc"
