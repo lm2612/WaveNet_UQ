@@ -14,7 +14,7 @@ class Wavenet_for_MiMA(nn.Module):
         self.n_d = n_d
         self.n_out = n_out
         self.shared = nn.Sequential(
-            nn.BatchNorm1d(self.n_in),     # Added by Laura, not in orig WaveNet
+            #nn.BatchNorm1d(self.n_in),     # Added by Laura, not in orig WaveNet
             nn.Linear(self.n_in, self.n_d[0]),
             nn.ReLU(),
             nn.Dropout(dropout_rate)
