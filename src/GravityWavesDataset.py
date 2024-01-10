@@ -132,6 +132,7 @@ class GravityWavesDataset(Dataset):
             ## Set up means and sd file for standard scaling. These
             ## must be saved in transform_dict
             if transform.lower() == "minmax":
+                print("Min Max scaling")
                 filename_min = transform_dict["filename_min"]
                 with xr.open_dataset(transform_dir + filename_min, decode_times=False ) as ds_min:
                     self.gwfu_min = ds_min[gwf_comp].to_numpy().mean(axis=(3), keepdims=True) 
@@ -152,6 +153,7 @@ class GravityWavesDataset(Dataset):
                 self.apply_minmax_scaler()
                 
             elif transform.lower() == "standard":
+                print("Standard scaling")
                 filename_mean = transform_dict["filename_mean"]
                 with xr.open_dataset(transform_dir + filename_mean, decode_times=False ) as ds_mean:
                     self.gwfu_mean = ds_mean[gwf_comp].to_numpy().mean(axis=(3), keepdims=True)
@@ -166,7 +168,7 @@ class GravityWavesDataset(Dataset):
                     self.gwfu_sd = ds_sd[gwf_comp].to_numpy().mean(axis=(3), keepdims=True)
                     self.u_sd = ds_sd[wind_comp].to_numpy().mean(axis=(3), keepdims=True)
                     self.T_sd = ds_sd["temp"].to_numpy().mean(axis=(3), keepdims=True)
-                    self.ps_sd = ds_mean["ps"].expand_dims(dim={'pfull':self.dummy_val},
+                    self.ps_sd = ds_sd["ps"].expand_dims(dim={'pfull':self.dummy_val},
                                                            axis=(1)).to_numpy().mean(axis=(3), keepdims=True)
                     
                 ## Apply transform so that dataset returns transformed variables only. 
