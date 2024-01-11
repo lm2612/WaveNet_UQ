@@ -4,7 +4,7 @@ import argparse
 import glob
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dir', type=str, default="wavenet_4yr_seed1")
+parser.add_argument('--dir', type=str, default="wavenet_seed1")
 args = parser.parse_args()
 dir_name = args.dir
 
@@ -12,9 +12,11 @@ base_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs"
 
 
 print(f"Opening file for {dir_name}")
-n_year = len(glob.glob(f"{base_dir}/{dir_name}/atmos_daily_*.nc"))
-print(f"{n_year} files")            
-ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_0.nc", decode_times=False)
+start_year = 45
+end_year = 65
+
+
+ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_{start_year}.nc", decode_times=False)
 
 # Dataset at equator 
 ds_tropics = ds.sel(lat=slice(-5,5))
@@ -27,7 +29,7 @@ ds_QBO = ds_tropics.weighted(weights).mean(("lon","lat"))
 print(ds_QBO)
 
 # Extend time series to all years
-for t in range(1,n_year):
+for t in range(start_year+1, end_year+1):
     ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_{t}.nc", decode_times=False)
     ds_tropics = ds.sel(lat=slice(-5,5))
     ds_QBO = xr.concat( (ds_QBO, ds_tropics.weighted(weights).mean(("lon","lat")) ), dim="time")
