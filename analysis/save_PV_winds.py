@@ -32,13 +32,15 @@ ds_SHPV = ds_SH.mean(("lon"))
 
 # Extend time series to all years
 for t in range(t_start, t_end):
-    ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_{t}.nc", decode_times=False)
-    ds_NH = ds.sel(lat=slice(50,90))
-    ds_NHPV = xr.concat( (ds_NHPV, ds_NH.mean(("lon")) ), dim="time")
+    try:
+        ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_{t}.nc", decode_times=False)
+        ds_NH = ds.sel(lat=slice(50,90))
+        ds_NHPV = xr.concat( (ds_NHPV, ds_NH.mean(("lon")) ), dim="time")
 
-    ds_SH = ds.sel(lat=slice(-90,-50))
-    ds_SHPV =  xr.concat( (ds_SHPV, ds_SH.mean(("lon")) ), dim="time")
-
+        ds_SH = ds.sel(lat=slice(-90,-50))
+        ds_SHPV =  xr.concat( (ds_SHPV, ds_SH.mean(("lon")) ), dim="time")
+    except:
+        print(f"no file for year {t}, assume model was restart to year {t+1}")
 
 # Save
 print(ds_NH)
