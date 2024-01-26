@@ -48,6 +48,8 @@ class GravityWavesDataset(Dataset):
         elif component.lower() == "meridional":
             wind_comp = "vcomp"
             gwf_comp = "gwfv_cgwd"
+        else:
+            raise ValueError(f"component must be either 'zonal' or 'meridional'. you defined component={component}")
 
         if isinstance(filename, str):
             print(f"Done opening single file")
@@ -80,13 +82,6 @@ class GravityWavesDataset(Dataset):
         self.npfull_out = npfull_out
 
         print(f"Dataset has ntime={self.ntime}. Getting variables.")
-        # Get variables 
-        if component.lower() == "zonal":
-            wind_comp = "ucomp"
-            gwf_comp = "gwfu_cgwd"
-        elif component.lower() == "meridional":
-            wind_comp = "vcomp"
-            gwf_comp = "gwfv_cgwd"
 
         self.gwfu = self.ds[gwf_comp]
         self.ucomp = self.ds[wind_comp]
