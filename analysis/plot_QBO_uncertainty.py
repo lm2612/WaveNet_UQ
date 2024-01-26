@@ -26,7 +26,7 @@ def all_periods_amplitudes(dirname, plev=10, filename="QBO_winds.nc"):
 
 plev = 10
 ## Set seeds
-seeds = list(range(100,151))
+seeds = list(range(100,112)) + list(range(117,121))
 n_seeds = len(seeds)
 
 ## Directories
@@ -34,7 +34,8 @@ n_seeds = len(seeds)
 ad99_dir="/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
 ad99_filenames = [f"QBO_winds{n}.nc" for n in range(1,3)]
 # ML: only 20 years per file, named QBO_winds.nc but we have one per seed
-ML_dirs = [f"/scratch/users/lauraman/WaveNetPyTorch/mima_runs/wavenet_seed{seed}/" for seed in seeds]
+model_start="wavenet_1"
+ML_dirs = [f"/scratch/users/lauraman/WaveNetPyTorch/mima_runs/{model_start}_seed{seed}/" for seed in seeds]
 save_dir = f"/scratch/users/lauraman/WaveNetPyTorch/mima_runs/PLOTS/"
 
 # Set up dictionaries to save all QBO periods and amplitudes
@@ -96,7 +97,7 @@ plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
 plt.xticks(fontsize=16)
 plt.xlabel("QBO Amplitude (m/s)", fontsize=20)
 plt.tight_layout()
-save_as = f"{save_dir}/QBO_boxplots_seeds100-150_plev{plev}hPa.png"
+save_as = f"{save_dir}/QBO_boxplots_plev{plev}hPa.png"
 plt.savefig(save_as)
 
 
