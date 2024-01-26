@@ -130,12 +130,16 @@ transform_vars = {"gwfu_mean": torch.tensor(gw_dataset.gwfu_mean),
 
 ## Load model weights
 model_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"
-epoch = get_best_epoch(model_dir)
+epoch = get_best_epoch(model_dir, min_epochs=50)
 print(f"Model with lowest validation error is epoch {epoch}")
 
-weights_filename = f"wavenet_weights_epoch{epoch}.pth"
-path_to_weights = f"{model_dir}{weights_filename}"
-model_weights = torch.load(path_to_weights, map_location = device)
+path_to_checkpoint = f"{model_dir}checkpoint_epoch{epoch}.pth"
+checkpoint = torch.load(path_to_checkpoint, map_location="cpu")
+model_weights = checkpoint["model_weights"] 
+
+#weights_filename = f"wavenet_weights_epoch{epoch}.pth"
+#path_to_weights = f"{model_dir}{weights_filename}"
+#model_weights = torch.load(path_to_weights, map_location = device)
 
 ## New instance of model with these weights
 model_for_mima = Wavenet_for_MiMA(n_in=82, n_out=40, transform_vars = transform_vars)
@@ -193,4 +197,4 @@ print("Done")
 filename = f"{model_dir}/{component}_wavenet.pth"
 
 frozen_model.save(filename)
-rint(f"Saved to {filename}")
+print(f"Saved to {filename}")
