@@ -114,7 +114,7 @@ print("Data loaded.")
 
 
 # Get model with lowest validation error 
-epoch = get_best_epoch(model_dir)
+epoch = get_best_epoch(model_dir, min_epochs=50)
 print(f"Model with lowest validation error is epoch {epoch}")
 
 model_filename = f"wavenet_model.pth"
