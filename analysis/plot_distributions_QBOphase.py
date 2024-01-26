@@ -13,9 +13,9 @@ from clim_functions.seasons import get_seasonal_inds
 #### ML online and offline dirs #### 
 offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
-model_start = "wavenet"
+model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
-t_range = range(45, 50) #65)
+t_range = range(45, 49) #65)
 n_t = len(t_range)
 filenames = [f"atmos_daily_{t}.nc" for t in t_range]
 
@@ -42,7 +42,7 @@ for filename in filenames[1:]:
 
 
 # Set seeds
-model_start = "wavenet"
+model_start = "wavenet_1"
 seeds = list(range(100,120))
 n_seeds = len(seeds)
 seed_inds = np.arange(n_seeds)
@@ -176,7 +176,7 @@ for region_name in region_names:
 
         plt.suptitle(f"Distributions of Gravity Wave Drag in {region_name} at {pfull[lev]:.1f} hPa")
         plt.tight_layout()
-        save_as = f"{save_dir}/Distributions_of_GWD_QBOphase_{region_name}_lev{lev}_seeds100-130.png"
+        save_as = f"{save_dir}/Distributions_of_GWD_QBOphase_{region_name}_lev{lev}.png"
         plt.savefig(save_as)
         print(f"Saved as {save_as}")
 
@@ -202,7 +202,7 @@ for region_name in region_names:
 
         plt.suptitle(f"Distributions of Wind in {region_name} at {pfull[lev]:.1f} hPa")
         plt.tight_layout()
-        save_as = f"{save_dir}/Distributions_of_wind_QBOphase_{region_name}_lev{lev}_seeds100-130.png"
+        save_as = f"{save_dir}/Distributions_of_wind_QBOphase_{region_name}_lev{lev}.png"
         plt.savefig(save_as)
         print(f"Saved as {save_as}")
 

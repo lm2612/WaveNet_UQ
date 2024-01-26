@@ -13,15 +13,15 @@ from clim_functions.seasons import get_seasonal_inds
 #### ML online and offline dirs #### 
 offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
-model_start = "wavenet"
+model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
-t_range = range(45, 50) #65)
+t_range = range(45, 66) ## TEMP
 n_t = len(t_range)
 filenames = [f"atmos_daily_{t}.nc" for t in t_range]
 
 ad99_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
 
-filename = "atmos_daily_45.nc"
+filename = f"atmos_daily_{t_range[0]}.nc"
 ds_ad99 = xr.open_dataset(f"{ad99_dir}/{filename}", decode_times=False )
 
 # Get dimensions
@@ -42,8 +42,8 @@ for filename in filenames[1:]:
 
 
 # Set seeds
-model_start = "wavenet"
-seeds = list(range(100,128))
+model_start = "wavenet_1"
+seeds = list(range(100,121))
 n_seeds = len(seeds)
 seed_inds = np.arange(n_seeds)
 ntime = 360*n_t
@@ -65,6 +65,7 @@ seasons = {
         "JJA": JJA_inds,
         "SON":SON_inds, 
         "ANN": ANN_inds}
+seasons = {"ANN":ANN_inds}
 season_names = list(seasons.keys())
 
 
@@ -84,7 +85,7 @@ def plot_hist(true, online_pred, offline_pred=None, ax=None,
     plt.hist(true.flatten(), bins=30, color="black",
             histtype="step", density=True, label="AD99")
 
-    ax.set_yscale("log")
+    #ax.set_yscale("log")
     plt.xlabel(xlabel)
     plt.legend()
     plt.title(title)
@@ -132,6 +133,7 @@ for region_name in region_names:
 
     for n, seed in enumerate(seeds):
         ML_dir = f"{online_dir}/{model_start}_seed{seed}/"
+        print(ML_dir)
         for ti, t in enumerate(t_range):
             ## Offline zonal and meridional
             ML_dir = f"{offline_dir}/{model_start}_zonal_seed{seed}/"
@@ -159,15 +161,20 @@ for region_name in region_names:
             plot_distribution(true_gwfu[season_inds, lev], 
                     online_gwfu_preds[:, season_inds, lev], 
                     offline_gwfu_preds[:, season_inds, lev],
-                    ax=axs[0], xlabel="GWD u (m/s^2)", title="Zonal")
+                    ax=axs[0], xlabel="Zonal GWD (m/s^2)", title="Zonal", x=np.arange(-1e-5, 1.01e-5, 2e-7))
             plot_distribution(true_gwfv[season_inds, lev], 
                     online_gwfv_preds[:, season_inds, lev], 
                     offline_gwfv_preds[:, season_inds, lev],
-                    ax=axs[1], xlabel="GWD v (m/s^2)", title="Meridional")
+                    ax=axs[1], xlabel="Meridional GWD (m/s^2)", title="Meridional", x=np.arange(-1e-5, 1.01e-5, 2e-7))
 
-            plt.suptitle(f"Distributions of Gravity Wave Drag for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
+            if season_name == "ANN":
+                plt.suptitle(f"Distributions of Gravity Wave Drag for {region_name} at {pfull[lev]:.1f} hPa")
+
+            else:
+                plt.suptitle(f"Distributions of Gravity Wave Drag for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
+
             plt.tight_layout()
-            save_as = f"{save_dir}/Distributions_of_GWD_{season_name}_{region_name}_lev{lev}_seeds100-130.png"
+            save_as = f"{save_dir}/Distributions_of_GWD_{season_name}_{region_name}_lev{lev}.png"
             plt.savefig(save_as)
             print(f"Saved as {save_as}")
 
@@ -176,13 +183,49 @@ for region_name in region_names:
             ### Plot wind
             fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
             plot_distribution(true_u[season_inds, lev], online_u_preds[:, season_inds, lev],
-                            ax=axs[0], xlabel="u (m/s)", title="Zonal", x=np.arange(-80, 80.1, 1) )
+                            ax=axs[0], xlabel="Zonal wind (m/s)", title="Zonal", x=np.arange(-60, 60.1, 5) )
             plot_distribution(true_v[season_inds, lev], online_v_preds[:, season_inds, lev], 
-                    ax=axs[1], xlabel="v (m/s)", title="Meridional",  x=np.arange(-80, 80.1, 1) )
+                    ax=axs[1], xlabel="Meridional wind (m/s)", title="Meridional",  x=np.arange(-60, 60.1, 5) )
 
-            plt.suptitle(f"Distributions of Wind for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
+            if season_name == "ANN":
+                plt.suptitle(f"Distributions of Wind for {region_name} at {pfull[lev]:.1f} hPa")
+            else:
+                plt.suptitle(f"Distributions of Wind for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
             plt.tight_layout()
-            save_as = f"{save_dir}/Distributions_of_wind_{season_name}_{region_name}_lev{lev}_seeds100-130.png"
+            save_as = f"{save_dir}/Distributions_of_wind_{season_name}_{region_name}_lev{lev}.png"
+            plt.savefig(save_as)
+            print(f"Saved as {save_as}")
+            
+            ## HISTS
+            plt.clf()
+            fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
+            plot_hist(true_gwfu[season_inds, lev],
+                    online_gwfu_preds[:, season_inds, lev],
+                    offline_gwfu_preds[:, season_inds, lev],
+                    ax=axs[0], xlabel="Zonal GWD (m/s^2)", title="Zonal")
+            plot_hist(true_gwfv[season_inds, lev],
+                    online_gwfv_preds[:, season_inds, lev],
+                    offline_gwfv_preds[:, season_inds, lev],
+                    ax=axs[1], xlabel="Meridional GWD (m/s^2)", title="Meridional")
+
+            plt.suptitle(f"Histogram of Gravity Wave Drag for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
+            plt.tight_layout()
+            save_as = f"{save_dir}/Histogram_of_GWD_{season_name}_{region_name}_lev{lev}.png"
+            plt.savefig(save_as)
+            print(f"Saved as {save_as}")
+
+            plt.clf()
+            fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
+            plot_hist(true_u[season_inds, lev],
+                    online_u_preds[:, season_inds, lev],
+                    ax=axs[0], xlabel="Zonal wind (m/s)", title="Zonal")
+            plot_hist(true_v[season_inds, lev],
+                    online_v_preds[:, season_inds, lev],
+                    ax=axs[1], xlabel="Meridional wind (m/s)", title="Meridional")
+
+            plt.suptitle(f"Histogram of Wind for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
+            plt.tight_layout()
+            save_as = f"{save_dir}/Histogram_of_wind_{season_name}_{region_name}_lev{lev}.png"
             plt.savefig(save_as)
             print(f"Saved as {save_as}")
 
