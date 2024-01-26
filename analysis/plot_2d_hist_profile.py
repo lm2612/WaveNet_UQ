@@ -13,15 +13,15 @@ from clim_functions.seasons import get_seasonal_inds
 #### ML online and offline dirs #### 
 offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
-model_start = "wavenet"
+model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
-t_range = range(45, 50) #65)
+t_range = range(55, 65) #65)
 n_t = len(t_range)
 filenames = [f"atmos_daily_{t}.nc" for t in t_range]
 
 ad99_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
 
-filename = "atmos_daily_45.nc"
+filename = f"atmos_daily_{t_range[0]}.nc"
 ds_ad99 = xr.open_dataset(f"{ad99_dir}/{filename}", decode_times=False ).isel(pfull=slice(12,25))
 
 # Get dimensions
@@ -42,8 +42,8 @@ for filename in filenames[1:]:
 
 
 # Set seeds
-model_start = "wavenet"
-seeds = list(range(100, 150))
+model_start = "wavenet_1"
+seeds = list(range(100, 120))
 n_seeds = len(seeds)
 seed_inds = np.arange(n_seeds)
 ntime = 360*n_t
@@ -90,7 +90,7 @@ def plot_hist(true, online_pred, offline_pred=None, ax=None,
     return ax
 
 def plot_distribution(true, online_pred, offline_pred=None, ax=None,
-        xlabel="", title="", x=np.arange(-3e-5, 3.2e-5, 1e-7)):
+        xlabel="", title="", x=np.arange(-3e-5, 3.1e-5, 1e-7)):
     if ax is None:
         fig, ax = plt.subplot(1,1, figsize=(5, 4))
     plt.sca(ax)
@@ -109,7 +109,7 @@ def plot_distribution(true, online_pred, offline_pred=None, ax=None,
     plt.title(title)
     return ax
 
-def calc_density(gwfu, x=np.arange(-3e-5, 3.2e-5, 1e-7)):
+def calc_density(gwfu, x=np.arange(-3e-5, 3.1e-5, 1e-7)):
     kde = stats.gaussian_kde(gwfu.flatten())
     return kde(x)
 
@@ -128,7 +128,7 @@ for region_name in region_names:
     x=np.arange(-1e-5, 1.01e-5, 1e-6)
     true_gwfu_dens = np.zeros((npfull_reg, len(x)))
     true_gwfv_dens = np.zeros((npfull_reg, len(x)))
-    x_u = np.arange(-50, 50.01, 5)
+    x_u = np.arange(-60, 60.01, 5)
     true_u_dens = np.zeros((npfull_reg, len(x_u)))
     true_v_dens = np.zeros((npfull_reg, len(x_u)))
 
@@ -187,16 +187,16 @@ for region_name in region_names:
     ## Truth 
     fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
     plt.sca(axs[0])
-    plt.contourf(x, pfull, true_gwfu_dens)
+    plt.pcolormesh(x, pfull, true_gwfu_dens, vmin=0, vmax=3e5)
     plt.xlabel("Zonal GWD (m/s^2)")
     plt.title("Zonal GWD")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-1e-5, xmax=1e-5)
     
     plt.sca(axs[1]) 
-    plt.contourf(x, pfull, true_gwfv_dens)
+    plt.pcolormesh(x, pfull, true_gwfv_dens, vmin=0, vmax=3e5)
     plt.xlabel("Meridional GWD (m/s^2)")
     plt.title("Meridional GWD")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-1e-5, xmax=1e-5)
     
     axs[0].set_yscale('log')
     axs[0].invert_yaxis()
@@ -204,7 +204,7 @@ for region_name in region_names:
 
     plt.suptitle(f"True gravity wave drag density for {region_name}")
     plt.tight_layout()
-    save_as = f"{save_dir}/GWD_2dhist_true_{region_name}_seeds100-150.png"
+    save_as = f"{save_dir}/GWD_2dhist_true_{region_name}.png"
     plt.savefig(save_as)
 
 
@@ -212,16 +212,16 @@ for region_name in region_names:
     plt.clf()
     fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
     plt.sca(axs[0])
-    plt.contourf(x, pfull, offline_gwfu_dens)
+    plt.pcolormesh(x, pfull, offline_gwfu_dens, vmin=0, vmax=3e5)
     plt.xlabel("Zonal GWD (m/s^2)")
     plt.title("Zonal GWD")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-1e-5, xmax=1e-5)
 
     plt.sca(axs[1])
-    plt.contourf(x, pfull, offline_gwfv_dens)
+    plt.pcolormesh(x, pfull, offline_gwfv_dens, vmin=0, vmax=3e5)
     plt.xlabel("Meridional GWD (m/s^2)")
     plt.title("Meridional GWD")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-1e-5, xmax=1e-5)
     
     axs[0].set_yscale('log')
     axs[0].invert_yaxis()
@@ -229,7 +229,7 @@ for region_name in region_names:
 
     plt.suptitle(f"Offline gravity wave drag density for {region_name}")
     plt.tight_layout()
-    save_as = f"{save_dir}/GWD_2dhist_offline_{region_name}_seeds100-150.png"
+    save_as = f"{save_dir}/GWD_2dhist_offline_{region_name}.png"
     plt.savefig(save_as)
 
 
@@ -237,16 +237,16 @@ for region_name in region_names:
     plt.clf()
     fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
     plt.sca(axs[0])
-    plt.contourf(x, pfull, online_gwfu_dens)
+    plt.pcolormesh(x, pfull, online_gwfu_dens, vmin=0, vmax=3e5)
     plt.xlabel("Zonal GWD (m/s^2)")
     plt.title("Zonal GWD")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-1e-5, xmax=1e-5)
 
     plt.sca(axs[1])
-    plt.contourf(x, pfull, online_gwfv_dens)
+    plt.pcolormesh(x, pfull, online_gwfv_dens, vmin=0, vmax=3e5)
     plt.xlabel("Meridional GWD (m/s^2)")
     plt.title("Meridional GWD")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-1e-5, xmax=1e-5)
    
     axs[0].set_yscale('log')
     axs[0].invert_yaxis()
@@ -254,20 +254,20 @@ for region_name in region_names:
 
     plt.suptitle(f"Online gravity wave drag density for {region_name}")
     plt.tight_layout()
-    save_as = f"{save_dir}/GWD_2dhist_online_{region_name}_seeds100-150.png"
+    save_as = f"{save_dir}/GWD_2dhist_online_{region_name}.png"
     plt.savefig(save_as)
 
 
     ## Truth winds
     fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
     plt.sca(axs[0])
-    plt.contourf(x_u, pfull, true_u_dens)
+    plt.pcolormesh(x_u, pfull, true_u_dens, vmin=0, vmax=5e-2)
     plt.xlabel("u (m/s)")
     plt.title("Zonal wind")
     plt.axis(xmin=-60, xmax=60)
 
     plt.sca(axs[1])
-    plt.contourf(x_u, pfull, true_v_dens)
+    plt.pcolormesh(x_u, pfull, true_v_dens, vmin=0, vmax=5e-2)
     plt.xlabel("v (m/s)")
     plt.title("Meridional wind")
     plt.axis(xmin=-60, xmax=60)
@@ -278,7 +278,7 @@ for region_name in region_names:
 
     plt.suptitle(f"True wind density for {region_name}")
     plt.tight_layout()
-    save_as = f"{save_dir}/wind_2dhist_true_{region_name}_seeds100-150.png"
+    save_as = f"{save_dir}/wind_2dhist_true_{region_name}.png"
     plt.savefig(save_as)
 
 
@@ -286,16 +286,16 @@ for region_name in region_names:
     plt.clf()
     fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
     plt.sca(axs[0])
-    plt.contourf(x_u, pfull, online_u_dens)
+    plt.pcolormesh( x_u, pfull, online_u_dens, vmin=0, vmax=5e-2)
     plt.xlabel("u (m/s)")
     plt.title("Zonal wind")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-60, xmax=60)
 
     plt.sca(axs[1])
-    plt.contourf(x_u, pfull, online_v_dens)
+    plt.pcolormesh(x_u, pfull, online_v_dens, vmin=0, vmax=5e-2)
     plt.xlabel("v (m/s)")
     plt.title("Meridional wind")
-    plt.axis(xmin=-2e-5, xmax=2e-5)
+    plt.axis(xmin=-60, xmax=60)
 
     axs[0].set_yscale('log')
     axs[0].invert_yaxis()
@@ -303,5 +303,5 @@ for region_name in region_names:
 
     plt.suptitle(f"Online wind density for {region_name}")
     plt.tight_layout()
-    save_as = f"{save_dir}/wind_2dhist_online_{region_name}_seeds100-150.png"
+    save_as = f"{save_dir}/wind_2dhist_online_{region_name}.png"
     plt.savefig(save_as)
