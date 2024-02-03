@@ -15,7 +15,7 @@ offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
 model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
-t_range = range(45, 66) ## TEMP
+t_range = range(55, 63) ## TEMP
 n_t = len(t_range)
 filenames = [f"atmos_daily_{t}.nc" for t in t_range]
 
@@ -43,7 +43,7 @@ for filename in filenames[1:]:
 
 # Set seeds
 model_start = "wavenet_1"
-seeds = list(range(100,121))
+seeds = list(range(100,130))
 n_seeds = len(seeds)
 seed_inds = np.arange(n_seeds)
 ntime = 360*n_t
@@ -183,9 +183,9 @@ for region_name in region_names:
             ### Plot wind
             fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
             plot_distribution(true_u[season_inds, lev], online_u_preds[:, season_inds, lev],
-                            ax=axs[0], xlabel="Zonal wind (m/s)", title="Zonal", x=np.arange(-60, 60.1, 5) )
+                            ax=axs[0], xlabel="Zonal wind (m/s)", title="Zonal", x=np.arange(-60, 60.1, 1) )
             plot_distribution(true_v[season_inds, lev], online_v_preds[:, season_inds, lev], 
-                    ax=axs[1], xlabel="Meridional wind (m/s)", title="Meridional",  x=np.arange(-60, 60.1, 5) )
+                    ax=axs[1], xlabel="Meridional wind (m/s)", title="Meridional",  x=np.arange(-60, 60.1, 1) )
 
             if season_name == "ANN":
                 plt.suptitle(f"Distributions of Wind for {region_name} at {pfull[lev]:.1f} hPa")
