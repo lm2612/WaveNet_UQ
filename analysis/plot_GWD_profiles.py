@@ -36,7 +36,7 @@ model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
 
 # Set seeds
-seeds = range(100, 126)
+seeds = range(100, 130)
 n_seeds = len(seeds)
 
 subsample_time = 10 
