@@ -57,7 +57,7 @@ def pv_stats(rundir, hemisphere="NH", filename="PV_NH_winds.nc"):
 
 plev = 10
 ## Set seeds
-seeds = list(range(100,121))
+seeds = list(range(100,130))
 n_seeds = len(seeds)
 
 ## Directories
@@ -73,14 +73,14 @@ all_n_ssws_pd_nh = {}
 all_pv_lifetime_sh = {}
 
 # NH:
-n_ssws_per_decade = pv_stats(ad99_dir, hemisphere="NH", filename=[f"PV_NH_winds{n}.nc" for n in range(1,3)])
+n_ssws_per_decade = pv_stats(ad99_dir, hemisphere="NH", filename=[f"PV_NH_winds{n}.nc" for n in range(1,5)])
 AD99_n_ssws_pd = np.array(n_ssws_per_decade)
 print(AD99_n_ssws_pd)
 
 all_n_ssws_pd_nh["ad99"] = AD99_n_ssws_pd
 
 # SH:
-AD99_lifetime = pv_stats(ad99_dir, hemisphere="SH", filename=[f"PV_SH_winds{n}.nc" for n in range(1,3)])
+AD99_lifetime = pv_stats(ad99_dir, hemisphere="SH", filename=[f"PV_SH_winds{n}.nc" for n in range(1,5)])
 all_pv_lifetime_sh["ad99"] = AD99_lifetime
 
 # Get PV properties for ML 
