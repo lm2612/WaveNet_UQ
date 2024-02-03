@@ -15,7 +15,7 @@ offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
 model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
-t_range = range(55, 65) #65)
+t_range = range(55, 63) #65)
 n_t = len(t_range)
 filenames = [f"atmos_daily_{t}.nc" for t in t_range]
 
@@ -43,7 +43,7 @@ for filename in filenames[1:]:
 
 # Set seeds
 model_start = "wavenet_1"
-seeds = list(range(100, 120))
+seeds = list(range(100, 130))
 n_seeds = len(seeds)
 seed_inds = np.arange(n_seeds)
 ntime = 360*n_t
