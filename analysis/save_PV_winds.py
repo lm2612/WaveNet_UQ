@@ -31,7 +31,7 @@ ds_NHPV = ds_NH.mean(("lon"))
 ds_SHPV = ds_SH.mean(("lon"))
 
 # Extend time series to all years
-for t in range(t_start, t_end):
+for t in range(t_start+1, t_end):
     try:
         ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_{t}.nc", decode_times=False)
         ds_NH = ds.sel(lat=slice(50,90))

@@ -33,7 +33,7 @@ ds_QBO = ds_tropics.weighted(weights).mean(("lon","lat"))
 print(ds_QBO)
 
 # Extend time series to all years
-for t in range(t_start, t_end):
+for t in range(t_start+1, t_end):
     try:
         ds = xr.open_dataset(f"{base_dir}/{dir_name}/atmos_daily_{t}.nc", decode_times=False)
         ds_tropics = ds.sel(lat=slice(-5,5))
