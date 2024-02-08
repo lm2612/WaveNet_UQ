@@ -1,6 +1,5 @@
 import numpy as np
 import xarray as xr
-import dask
 
 import torch
 from torch.utils.data import Dataset
@@ -15,7 +14,7 @@ class GravityWavesDataset(Dataset):
                  ):
         """
         Sets up dataset from which you can index. Data must fit into memory, everything is
-        done with numpy arrays. If not, use other Xarray/dask version, which is slower.
+        done with numpy arrays. 
         Args:
             data_dir (string): Location of directory
             filename (string) or Tuple/List of strings: Filename of netcdf containing ucomp, temp, gwfu_cgwd
@@ -37,7 +36,7 @@ class GravityWavesDataset(Dataset):
             print(f"Setting up dataset from multiple files. Starting with {filename0}")
 
         path_to_file = data_dir + filename0
-        self.ds = xr.open_dataset(path_to_file, decode_times=False , chunks={})
+        self.ds = xr.open_dataset(path_to_file, decode_times=False)
         if subset_time != None:
             self.ds = self.ds.isel(time=slice(subset_time[0], subset_time[1]))
 
@@ -61,7 +60,7 @@ class GravityWavesDataset(Dataset):
                 filename_n = filename[file_no]
                 print(f"Setting up {filename_n}")
                 path_to_file = data_dir + filename_n
-                ds_n = xr.open_dataset(path_to_file, decode_times=False, chunks={})
+                ds_n = xr.open_dataset(path_to_file, decode_times=False)
                 if subset_time != None:
                     ds_n = ds_n.isel(time=slice(subset_time[0], subset_time[1]))
                 self.ds = xr.concat((self.ds, ds_n), dim="time", data_vars=[gwf_comp, wind_comp, "temp", "ps"] )
