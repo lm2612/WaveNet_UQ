@@ -17,7 +17,11 @@ Total dimensions: 40
 Note, the inputs and outputs are either both zonal or both meridional. See Espinosa et al., 2022 for full details on the neural network.
 
 ## Dependencies
-torch, xarray, matplotlib
+Model of an idealized Moist Atmosphere: https://github.com/DataWaveProject/MiMA-machine-learning
+FTorch coupling library: https://github.com/Cambridge-ICCS/FTorch
+For training, testing, plotting, analysis in python: torch, xarray, matplotlib
+
+GPU resources are not absolutely necessary for training, but are faster. For GPU training, you also need cuda. 
 
 # Source code
 `src` containes the most important files for setting up the dataset and defining the neural network architecture.
@@ -27,7 +31,7 @@ torch, xarray, matplotlib
 
 `scripts` contain python scripts for training, testing and converting to torchscript. You can edit argument inputs to repeat training for both zonal and meridional components, different random seed initializations for generating enembles, and also for trying different transforms, learning rates, dropout, and so on.
 * `scripts/train_wavenet.py` contains the training loop. 
-* `scripts/test_model.py` contains a loop to test over new, unseen data.
+* `scripts/test_wavenet.py` contains a loop to test over new, unseen data.
 * `scipts/wavenet_to_torchscript.py` converts the pytorch model into torchscript for use with FTorch and MiMA.
 
 Scripts for analyzing statistics and plotting can be found in `analysis`.
@@ -57,7 +61,7 @@ ones are to specify the component (zonal or meridional), the transform used to p
 the filenames for training, validation and scaling, and the random seed. Changing the random seed changes the initialization and the 
 converged network and is key for deep ensembles.
 
-First, we need to choose training and validation files. We will use file `atmos_all_43.nc` for training and `atmos_all_44.nc` for testing. 
+First, we need to choose training and validation files. We will use file `atmos_all_43.nc` for training and `atmos_all_44.nc` for validation. 
 
 Second, it is recommended to scale all variables. We will use the standard scaler with zero mean and unit standard deviation. 
 We need to estimate the mean and standard deviation across the training dataset. 
@@ -68,21 +72,21 @@ cdo -f nc4 -selname,ucomp,vcomp,gwfu_cgwd,gwfv_cgwd,temp,ps -timstd atmos_all_43
 ```
 or you can calculate these in python/xarray. 
 If using standard scaling, the means and standard deviations must be saved as `{scaler_filestart}_mean.nc` and `{scaler_filestart}_std.nc` and we will provide the 
-script with the `scaler_filestart` (in this case `atmos_all_43`). If training on more than one year, you may need to average over more years or change this filename.
+script with the `scaler_filestart=atmos_all_43`. If training on more than one year, you may need to average over more years or change this filename.
 
 Then, we can run the script to train wavenet. We will train for 300 epochs. 
 ```
 cd scripts/
-python train_wavenet.py --component "zonal" --transform "standard"  --n_epoch 300 --model_name "wavenet" --seed 1  --filename "atmos_all_43.nc" --scaler_filestart "atmos_all_43"  --valid_filename "atmos_all_44.nc"
+python train_wavenet.py --component "zonal" --transform "standard"  --n_epoch 300 --data_dir "path/to/data" --output_dir "path/to/output" --model_name "wavenet_zonal_seed1" --seed 1  --filename "atmos_all_43.nc" --scaler_filestart "atmos_all_43"  --valid_filename "atmos_all_44.nc"
 ```
+`data_dir` is the location of your training, validation and scaler files. All output files will be saved under a new directory `path/to/output/wavenet_zonal_seed1/`. Make sure to save different seeded models under different `model_name`. Output files include checkpoints at every epoch (in case the training needs to be restarted) as `checkpoint_epoch{epoch}.pth` and the neural network weights as `wavenet_weights_epoch{epoch}.pth`.
 
-This example uses the random number seed `1`. We have named the model `wavenet`. All output files will be saved under the directory `wavenet_zonal_seed1`. Output files include checkpoints at every epoch (in case the training needs to be restarted) as `checkpoint_epoch{epoch}.pth` and the neural network weights as `wavenet_weights_epoch{epoch}.pth`.
-
+To train the ensemble, repeat this many times with different random seeds.
 
 ## 3. Test offline
-Once training is completed, we carry out offline testing. For this example we are testing on daily datasets rather than 3-hourly as these files are smaller (you can find them on the zenodo repository). This example tests on `atmos_daily_45.nc`. The script is in `scripts/test_model.py` and uses almost identical arguments to the training script above.
+Once training is completed, we carry out offline testing. For this example we are testing on daily datasets rather than 3-hourly as these files are smaller (you can find them on the zenodo repository). This example tests on `atmos_daily_45.nc`. The script is in `scripts/test_wavenet.py` and uses almost identical arguments to the training script above.
 ```
-python test_model.py --component "zonal" --transform "standard"   --model_name "wavenet_zonal_seed1" --filename "atmos_daily_45.nc" --scaler_filestart "atmos_all_43"
+python test_wavenet.py --component "zonal" --transform "standard"  --data_dir "path/to/data" --output_dir "path/to/output"  --model_name "wavenet_zonal_seed1" --filename "atmos_daily_45.nc" --scaler_filestart "atmos_all_43"
 ```
 Notice we still provide the scaling file from the training dataset. Also notice we provide the full model output directory `wavenet_zonal_seed1`. This script outputs predictions for zonal gravity wave drag saved as `atmos_daily_45.nc` in the same directory. 
 
