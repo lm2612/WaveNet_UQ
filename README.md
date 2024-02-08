@@ -2,9 +2,19 @@
 WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
 ## Neural network structure
-The neural network takes as inputs: winds (zonal or meridional), temperature, latitude and surface pressure, for each grid cell, and as outputs: gravity wave drag (zonal or meridional).
-Espinosa et al., 2022 for full details on the neural network.
-This repo contains code used to generate ensembles for uncertainty quantification.
+The neural network takes inputs at each grid lon/lat grid cell, some of which are defined as height profiles with dimension=40.
+INPUTS:
+* wind profile (zonal or meridional). dim=40
+* temperature profile. dim=40
+* latitude. dim=1
+* surface pressure. dim=1
+Total dimensions: 82
+
+OUTPUTS:
+* gravity wave drag profile (zonal or meridional) dim=40
+Total dimensions: 40
+
+Note, the inputs and outputs are either both zonal or both meridional. See Espinosa et al., 2022 for full details on the neural network.
 
 ## Dependencies
 torch, xarray, matplotlib
