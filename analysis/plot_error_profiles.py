@@ -31,12 +31,12 @@ gwfv_ad99 = ds_ad99["gwfv_cgwd"]
 #### ML runs: offline predictions ####
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
 offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
-model_start = "wavenet"
+model_start = "wavenet_1"
 
-save_dir = f"{online_dir}/PLOTS_wavenet4yr/"
+save_dir = f"{online_dir}/PLOTS/"
 
 # Set seeds
-seeds = range(100, 125)
+seeds = range(100, 130)
 n_seeds = len(seeds)
 
 subsample_time = 1 
@@ -66,6 +66,12 @@ for n, seed in enumerate(seeds):
     ML_dir = f"{offline_dir}/{model_start}_{component}_seed{seed}/"
     ds_u = xr.open_dataset(f"{ML_dir}/{filename}", decode_times=False )
     gwfv_preds[n] = ds_u["gwfv_cgwd_pred"][:ntime:subsample_time, :, ::subsample_lat, ::subsample_lon]
+
+## Reshape: lon and time axes merge
+gwfu_preds = np.moveaxis(gwfu_preds, -1, 1).reshape((n_seeds, (ntime//subsample_time)*(nlon//subsample_lon), npfull, nlat//subsample_lat) )
+gwfv_preds = np.moveaxis(gwfv_preds, -1, 1).reshape((n_seeds, (ntime//subsample_time)*(nlon//subsample_lon), npfull, nlat//subsample_lat) )
+gwfu_ad99 = np.moveaxis(gwfu_ad99, -1, 0).reshape(( (ntime//subsample_time)*(nlon//subsample_lon), npfull, nlat//subsample_lat) )
+gwfv_ad99 = np.moveaxis(gwfv_ad99, -1, 0).reshape(( (ntime//subsample_time)*(nlon//subsample_lon), npfull, nlat//subsample_lat) )
    
 
 ## Error metrics: MAE, RMSE, R2, CRPS
@@ -110,7 +116,7 @@ def plot_error_profile(err_u, err_v, xmin=0, xmax=1):
     plt.sca(ax)
     # Truth
     plt.semilogy(err_u, pfull,  color="black")
-    plt.xlabel("Zonal GWD (m/s^2)")
+    plt.xlabel("Zonal GWD (ms$^{-2}$)")
     plt.title("Zonal GWD")
     ax.invert_yaxis()
     plt.ylabel("Pressure (hPa)")
@@ -120,52 +126,51 @@ def plot_error_profile(err_u, err_v, xmin=0, xmax=1):
     ax = axs[1]
     plt.sca(ax)
     plt.semilogy(err_v,  pfull,    color="black")
-    plt.xlabel("Meridional GWD (m/s^2)")
+    plt.xlabel("Meridional GWD (ms$^{-2}$)")
     plt.title("Meridional GWD")
     plt.axis(xmin=xmin, xmax=xmax)
     return fig
 
 
 for j in range(0, nlat//subsample_lat):
-    for i in range(0, nlon//subsample_lon):
-        plt.clf()
-        ## Calculate all error metrics and plot
-        # MAE
-        mae_u = MAE(gwfu_ad99[..., j, i], gwfu_preds[..., j, i])
-        mae_v = MAE(gwfv_ad99[..., j, i], gwfv_preds[..., j, i])
-        print(mae_u.shape)
-        fig = plot_error_profile(mae_u, mae_v, xmin = 0., xmax=1e-5)
-        plt.suptitle("Mean Absolute Error")
-        save_plotname = f"{save_dir}/GWD_err_MAE_profile_lat{j*subsample_lat}_lon{i*subsample_lon}.png"
-        plt.savefig(save_plotname)
+    plt.clf()
+    ## Calculate all error metrics and plot
+    # MAE
+    mae_u = MAE(gwfu_ad99[..., j], gwfu_preds[..., j])
+    mae_v = MAE(gwfv_ad99[..., j], gwfv_preds[..., j])
+    print(mae_u.shape)
+    fig = plot_error_profile(mae_u, mae_v, xmin = 0., xmax=1e-5)
+    plt.suptitle("Mean Absolute Error")
+    save_plotname = f"{save_dir}/GWD_err_MAE_profile_lat{j*subsample_lat}.png"
+    plt.savefig(save_plotname)
 
-        # RMSE
-        plt.clf()
-        rmse_u = RMSE(gwfu_ad99[..., j, i], gwfu_preds[..., j, i])
-        rmse_v = RMSE(gwfv_ad99[..., j, i], gwfv_preds[..., j, i])
-        fig = plot_error_profile(rmse_u, rmse_v, xmin = 0., xmax=1e-5)
-        plt.suptitle("Root Mean Squared Error")
-        save_plotname = f"{save_dir}/GWD_err_RMSE_profile_lat{j*subsample_lat}_lon{i*subsample_lon}.png"
-        plt.savefig(save_plotname)
+    # RMSE
+    plt.clf()
+    rmse_u = RMSE(gwfu_ad99[..., j], gwfu_preds[..., j])
+    rmse_v = RMSE(gwfv_ad99[..., j], gwfv_preds[..., j])
+    fig = plot_error_profile(rmse_u, rmse_v, xmin = 0., xmax=1e-5)
+    plt.suptitle("Root Mean Squared Error")
+    save_plotname = f"{save_dir}/GWD_err_RMSE_profile_lat{j*subsample_lat}.png"
+    plt.savefig(save_plotname)
         
-        # CRPS
-        plt.clf()
-        crps_u = crps(gwfu_ad99[..., j, i], gwfu_preds[..., j, i])
-        crps_v = crps(gwfv_ad99[..., j, i], gwfv_preds[..., j, i])
-        fig = plot_error_profile(crps_u, crps_v, xmin = 0., xmax=1e-5)
-        plt.suptitle("Continuous Ranked Probability Score")
-        save_plotname = f"{save_dir}/GWD_err_CRPS_profile_lat{j*subsample_lat}_lon{i*subsample_lon}.png"
-        plt.savefig(save_plotname)
+    # CRPS
+    plt.clf()
+    crps_u = crps(gwfu_ad99[..., j], gwfu_preds[..., j])
+    crps_v = crps(gwfv_ad99[..., j], gwfv_preds[..., j])
+    fig = plot_error_profile(crps_u, crps_v, xmin = 0., xmax=1e-5)
+    plt.suptitle("Continuous Ranked Probability Score")
+    save_plotname = f"{save_dir}/GWD_err_CRPS_profile_lat{j*subsample_lat}.png"
+    plt.savefig(save_plotname)
 
-        # R2
-        plt.clf()
-        r2_u = r2(gwfu_ad99[..., j, i], gwfu_preds[..., j, i])
-        r2_v = r2(gwfv_ad99[..., j, i], gwfv_preds[..., j, i])
-        fig = plot_error_profile(r2_u, r2_v, xmin = 0., xmax=1)
-        plt.suptitle("R squared")
-        save_plotname = f"{save_dir}/GWD_err_R2_profile_lat{j*subsample_lat}_lon{i*subsample_lon}.png"
-        plt.savefig(save_plotname)
+    # R2
+    plt.clf()
+    r2_u = r2(gwfu_ad99[..., j], gwfu_preds[..., j])
+    r2_v = r2(gwfv_ad99[..., j], gwfv_preds[..., j])
+    fig = plot_error_profile(r2_u, r2_v, xmin = 0., xmax=1)
+    plt.suptitle("R squared")
+    save_plotname = f"{save_dir}/GWD_err_R2_profile_lat{j*subsample_lat}.png"
+    plt.savefig(save_plotname)
 
-    print(f"Done all plots for lat {j*subsample_lat}. Last plot was saved as {save_plotname}")
+print(f"Done all plots for lat {j*subsample_lat}. Last plot was saved as {save_plotname}")
            
 

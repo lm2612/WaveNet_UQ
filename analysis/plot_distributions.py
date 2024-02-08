@@ -161,11 +161,11 @@ for region_name in region_names:
             plot_distribution(true_gwfu[season_inds, lev], 
                     online_gwfu_preds[:, season_inds, lev], 
                     offline_gwfu_preds[:, season_inds, lev],
-                    ax=axs[0], xlabel="Zonal GWD (m/s^2)", title="Zonal", x=np.arange(-1e-5, 1.01e-5, 2e-7))
+                    ax=axs[0], xlabel="Zonal GWD (ms$^{-2}$)", title="Zonal", x=np.arange(-1e-5, 1.01e-5, 2e-7))
             plot_distribution(true_gwfv[season_inds, lev], 
                     online_gwfv_preds[:, season_inds, lev], 
                     offline_gwfv_preds[:, season_inds, lev],
-                    ax=axs[1], xlabel="Meridional GWD (m/s^2)", title="Meridional", x=np.arange(-1e-5, 1.01e-5, 2e-7))
+                    ax=axs[1], xlabel="Meridional GWD (ms$^{-2}$)", title="Meridional", x=np.arange(-1e-5, 1.01e-5, 2e-7))
 
             if season_name == "ANN":
                 plt.suptitle(f"Distributions of Gravity Wave Drag for {region_name} at {pfull[lev]:.1f} hPa")
@@ -183,9 +183,9 @@ for region_name in region_names:
             ### Plot wind
             fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
             plot_distribution(true_u[season_inds, lev], online_u_preds[:, season_inds, lev],
-                            ax=axs[0], xlabel="Zonal wind (m/s)", title="Zonal", x=np.arange(-60, 60.1, 1) )
+                            ax=axs[0], xlabel="Zonal wind (ms$^{-1}$)", title="Zonal", x=np.arange(-60, 60.1, 1) )
             plot_distribution(true_v[season_inds, lev], online_v_preds[:, season_inds, lev], 
-                    ax=axs[1], xlabel="Meridional wind (m/s)", title="Meridional",  x=np.arange(-60, 60.1, 1) )
+                    ax=axs[1], xlabel="Meridional wind (ms$^{-1}$)", title="Meridional",  x=np.arange(-60, 60.1, 1) )
 
             if season_name == "ANN":
                 plt.suptitle(f"Distributions of Wind for {region_name} at {pfull[lev]:.1f} hPa")
@@ -202,11 +202,11 @@ for region_name in region_names:
             plot_hist(true_gwfu[season_inds, lev],
                     online_gwfu_preds[:, season_inds, lev],
                     offline_gwfu_preds[:, season_inds, lev],
-                    ax=axs[0], xlabel="Zonal GWD (m/s^2)", title="Zonal")
+                    ax=axs[0], xlabel="Zonal GWD (ms$^{-2}$)", title="Zonal")
             plot_hist(true_gwfv[season_inds, lev],
                     online_gwfv_preds[:, season_inds, lev],
                     offline_gwfv_preds[:, season_inds, lev],
-                    ax=axs[1], xlabel="Meridional GWD (m/s^2)", title="Meridional")
+                    ax=axs[1], xlabel="Meridional GWD (ms$^{-2}$)", title="Meridional")
 
             plt.suptitle(f"Histogram of Gravity Wave Drag for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
             plt.tight_layout()
@@ -218,10 +218,10 @@ for region_name in region_names:
             fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
             plot_hist(true_u[season_inds, lev],
                     online_u_preds[:, season_inds, lev],
-                    ax=axs[0], xlabel="Zonal wind (m/s)", title="Zonal")
+                    ax=axs[0], xlabel="Zonal wind (ms$^{-1}$)", title="Zonal")
             plot_hist(true_v[season_inds, lev],
                     online_v_preds[:, season_inds, lev],
-                    ax=axs[1], xlabel="Meridional wind (m/s)", title="Meridional")
+                    ax=axs[1], xlabel="Meridional wind (ms$^{-1}$)", title="Meridional")
 
             plt.suptitle(f"Histogram of Wind for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
             plt.tight_layout()

@@ -86,7 +86,7 @@ def plot_GWD_profile(t, j, i):
                 alpha=0.7,
                 label=f"{n}")
     #plt.legend(loc="lower left")
-    plt.xlabel("Zonal GWD (m/s^2)")
+    plt.xlabel("Zonal GWD (ms$^{-2}$)")
     plt.title("Zonal GWD")
     ax.invert_yaxis()
     plt.ylabel("Pressure (hPa)")
@@ -104,7 +104,7 @@ def plot_GWD_profile(t, j, i):
                 color=colors[n],
                 alpha=0.7,
                 label=f"{n}")
-    plt.xlabel("Meridional GWD (m/s^2)")
+    plt.xlabel("Meridional GWD (m$s^{-2}$)")
     plt.title("Meridional GWD")
 
 
@@ -135,7 +135,7 @@ def plot_GWD_profile_std(t, j, i):
                       color="orange", alpha=0.6,
                       label="Predicted 1 $\sigma$")
     plt.legend(loc="lower left")
-    plt.xlabel("Zonal GWD (m/s^2)")
+    plt.xlabel("Zonal GWD (m$s^{-2}$)")
     plt.title("Zonal GWD")
     ax.invert_yaxis()
     plt.ylabel("Pressure (hPa)")
@@ -158,7 +158,7 @@ def plot_GWD_profile_std(t, j, i):
                       gwfv_pred_mean + gwfv_pred_sd ,
                       color="orange", alpha=0.6,
                       label="Predicted 1 $\sigma$")
-    plt.xlabel("Meridional GWD (m/s^2)")
+    plt.xlabel("Meridional GWD (m$s^{-2}$)")
     plt.title("Meridional GWD")
 
 

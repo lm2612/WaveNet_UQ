@@ -26,13 +26,13 @@ def all_periods_amplitudes(dirname, plev=10, filename="QBO_winds.nc"):
 
 plev = 10
 ## Set seeds
-seeds = list(range(100,112)) + list(range(117,121))
+seeds = list(range(100,130)) 
 n_seeds = len(seeds)
 
 ## Directories
 # AD99: we have 80 years per file, named QBO_winds1.nc, QBO_winds2.nc, etc.
 ad99_dir="/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
-ad99_filenames = [f"QBO_winds{n}.nc" for n in range(1,3)]
+ad99_filenames = [f"QBO_winds{n}.nc" for n in range(1,5)]
 # ML: only 20 years per file, named QBO_winds.nc but we have one per seed
 model_start="wavenet_1"
 ML_dirs = [f"/scratch/users/lauraman/WaveNetPyTorch/mima_runs/{model_start}_seed{seed}/" for seed in seeds]
@@ -55,6 +55,15 @@ ML_amps = []
 
 for i, dirname in enumerate(ML_dirs):
     periods, amplitudes = all_periods_amplitudes(dirname, plev)
+    j = 0 
+    while j < len(periods):
+        if (periods[j] < 10) or (periods[j] > 45):
+            periods = np.delete(periods, j)
+            amplitudes = np.delete(amplitudes, j)
+        else:
+            j = j+1 
+            
+
     all_periods[f"seed{i+1}"] = periods
     all_amps[f"seed{i+1}"] = amplitudes
 
@@ -100,6 +109,101 @@ plt.tight_layout()
 save_as = f"{save_dir}/QBO_boxplots_plev{plev}hPa.png"
 plt.savefig(save_as)
 
+def custom_violin_plot(ax, data, positions, col1="gray", col2="black"):
+    parts = ax.violinplot(data,
+                          vert=False,
+                          positions = positions,
+                          widths = 0.8,
+                          showmeans=False,
+                          showmedians=False,
+        showextrema=False)
+    for pc in parts['bodies']:
+        pc.set_facecolor(col1)
+        pc.set_edgecolor(col2)
+        pc.set_alpha(0.5)
+
+
+    quartile1, medians, quartile3 = np.percentile(data, [25, 50, 75], axis=0)
+
+    #ax.vlines(positions, quartile1, quartile3, color=col2, linestyle='-', lw=5, alpha=0.8)
+    ax.scatter(positions, medians, marker='_', color='white', s=30, zorder=3, alpha=1)
+
+    return parts
+
+
+plt.clf()
+fig, axs = plt.subplots(2, 1, figsize=(12, 8))
+plt.sca(axs[0])
+bp_ad99 = custom_violin_plot(axs[0],  AD99_periods, positions = [1], col1="gray", col2="black")
+bp_ml = custom_violin_plot(axs[0], ML_periods, positions=[0], col1="orange", col2="red")
+bp_ad99 = plt.boxplot(AD99_periods, vert=False, patch_artist=True, positions=[1], widths=0.3, zorder=10)
+bp_ad99['boxes'][0].set(color="grey", edgecolor="black", alpha=0.5)
+bp_ad99['medians'][0].set(color="black", linewidth=3)
+
+bp_ML = plt.boxplot(ML_periods, vert=False, patch_artist=True, positions=[0], widths=0.3, zorder=10)
+bp_ML['boxes'][0].set(color="orange", edgecolor="red", alpha=0.5)
+bp_ML['medians'][0].set(color="red", linewidth=3)
+
+axs[0].scatter(all_periods["ad99"], np.ones(len(all_periods["ad99"])), color="black", alpha=0.3, zorder=20)
+for seed in range(n_seeds):
+    p_seed = all_periods[f"seed{seed+1}"]
+    axs[0].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.3, zorder=20)
+plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
+plt.axis(ymin=-1, ymax=2, xmin=20)
+plt.xticks(fontsize=16)
+plt.xlabel("QBO Period (months)", fontsize=20)
+
+plt.sca(axs[1])
+bp_ad99 = custom_violin_plot(axs[1],  AD99_amps, positions = [1], col1="gray", col2="black")
+bp_ml = custom_violin_plot(axs[1], ML_amps, positions=[0], col1="orange", col2="red")
+bp_ad99 = plt.boxplot(AD99_amps, vert=False, patch_artist=True, positions=[1], widths=0.3, zorder=10)
+bp_ad99['boxes'][0].set(color="grey", edgecolor="black", alpha=0.5)
+bp_ad99['medians'][0].set(color="black", linewidth=3)
+bp_ML = plt.boxplot(ML_amps, vert=False, patch_artist=True, positions=[0], widths=0.3, zorder=10)
+bp_ML['boxes'][0].set(color="orange", edgecolor="red", alpha=0.5)
+bp_ML['medians'][0].set(color="red", linewidth=3)
+
+axs[1].scatter(all_amps["ad99"], np.ones(len(all_amps["ad99"])), color="black", alpha=0.3, zorder=20)
+for seed in range(n_seeds):
+    p_seed = all_amps[f"seed{seed+1}"]
+    axs[1].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.3, zorder=20)
+plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
+plt.xticks(fontsize=16)
+plt.xlabel("QBO Amplitude (m/s)", fontsize=20)
+plt.axis(ymin=-1, ymax=2, xmin=15)
+plt.tight_layout()
+save_as = f"{save_dir}/QBO_violin_and_boxplots_plev{plev}hPa.png"
+plt.savefig(save_as)
+
+
+plt.clf()
+fig, axs = plt.subplots(2, 1, figsize=(12, 8))
+plt.sca(axs[0])
+bp_ad99 = custom_violin_plot(axs[0],  AD99_periods, positions = [1], col1="gray", col2="black")
+bp_ml = custom_violin_plot(axs[0], ML_periods, positions=[0], col1="orange", col2="red")
+axs[0].scatter(all_periods["ad99"], np.ones(len(all_periods["ad99"])), color="black", alpha=0.5)
+for seed in range(n_seeds):
+    p_seed = all_periods[f"seed{seed+1}"]
+    axs[0].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
+plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
+plt.axis(ymin=-1, ymax=2)
+plt.xticks(fontsize=16)
+plt.xlabel("QBO Period (months)", fontsize=20)
+
+plt.sca(axs[1])
+bp_ad99 = custom_violin_plot(axs[1],  AD99_amps, positions = [1], col1="gray", col2="black")
+bp_ml = custom_violin_plot(axs[1], ML_amps, positions=[0], col1="orange", col2="red")
+axs[1].scatter(all_amps["ad99"], np.ones(len(all_amps["ad99"])), color="black", alpha=0.5)
+for seed in range(n_seeds):
+    p_seed = all_amps[f"seed{seed+1}"]
+    axs[1].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
+plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
+plt.xticks(fontsize=16)
+plt.xlabel("QBO Amplitude (m/s)", fontsize=20)
+plt.axis(ymin=-1, ymax=2)
+plt.tight_layout()
+save_as = f"{save_dir}/QBO_violinplots_plev{plev}hPa.png"
+plt.savefig(save_as)
 
 
 print("Plotting done.")

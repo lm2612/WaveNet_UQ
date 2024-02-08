@@ -1,17 +1,25 @@
 # WaveNet_UQ
-WaveNet that provides UQ (e.g. ensemble seeded differently and dropout). Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet adapted from Minah Yang &amp; Dave Connelly.
+WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
-# How to use
+# Quick start
+Download files from zenodo repository and run the example scripts or notebooks.
+
+
+# Using the code
+The full process of generating the training data and coupling online involves working with the intermediate complexity climate model, MiMA, available here https://github.com/DataWaveProject/MiMA-machine-learning. 
+
 ## 1. Generate training data using MiMA
 Follow steps here to compile and run MiMA: https://github.com/DataWaveProject/MiMA-machine-learning/tree/master
-Example script to be added.
 
 MiMA should be set up to output gravity wave drag at all timesteps for training. 
 The exact version of MiMA used to generate our training data, including all input files
 and diagnostic tables, can be found on my branch: https://github.com/lm2612/MiMA/ !!update!!
-Note the diagnostic table () which must include `"gwfu_cgwd"` and `"gwfv_cgwd"` for `"all"` timesteps.
+Note the diagnostic table `diag_table` which must include `"gwfu_cgwd"` and `"gwfv_cgwd"` for `"all"` timesteps.
 This will create files named `atmos_all_1.nc`,`atmos_all_2.nc`,`atmos_all_3.nc`,...
 which will be used for training, validation and offline testing.
+
+You can skip this step and download the files `atmos_all_43.nc` and `atmos_all_44.nc` from zenodo repository.
+
 
 ## 2. Train ensemble of neural networks, each seeded with different random number
 The script to train an individual NN can be found in `scripts/train_wavenet.py`. It takes in a range of arguments, but the important
@@ -38,7 +46,7 @@ cd scripts/
 python -u train_wavenet.py --component "zonal" --transform "standard"  --n_epoch 300 --model_name "wavenet" --seed 1  --filename "atmos_all_43.nc" --scaler_filestart "atmos_all_43"  --valid_filename "atmos_all_44.nc"
 ```
 
-This example uses the random number seed `1`. We have named the model `wavenet`. All output files will be saved under the directory `wavenet_seed1`. Output files include checkpoints at every epoch (in case the training needs to be restarted) and the weights.
+This example uses the random number seed `1`. We have named the model `wavenet`. All output files will be saved under the directory `wavenet_seed1`. Output files include checkpoints at every epoch (in case the training needs to be restarted) and the neural network weights.
 
 
 ## 3. Test offline
@@ -71,8 +79,16 @@ The WaveNet code is edited slightly for compatibility. You can find that in `src
 
 code snipped for pytorch_to_torchscript.
 
+### 4d. Run MiMA online
+
+
 ## 5. Test online
 code snippet here
 
+## 6. Create
+
+# Authors
+Please reach out to me if you have any issues: lauraman@stanford.edu
+Citation: 
 
 

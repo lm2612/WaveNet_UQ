@@ -36,7 +36,7 @@ model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
 
 # Set seeds
-seeds = range(100, 121)
+seeds = range(100, 130)
 n_seeds = len(seeds)
 
 # Subsample for cost reasons
@@ -84,22 +84,23 @@ for mlev in mlevs:
         axs[0].plot([0., 4.e-6], [0., 4.e-6], color="black", linestyle="dashed")
         axs[0].scatter(gwfu_errs[:, mlev, j, :], gwfu_sigma[:, mlev, j, :], alpha=0.5, color="orange")
         
-        plt.xlabel("Ensemble Error (MAE) in Zonal GWD (m/s^2)")
-        plt.ylabel("Ensemble Uncertainty (1$\sigma$) in Zonal GWD (m/s^2)")
+        plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
+        plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
         plt.axis(ymax=3e-6)
-        plt.title("Zonal")
+        plt.title("Zonal GWD")
 
         plt.sca(axs[1])
         axs[1].plot([0., 4.e-6], [0., 4.e-6], color="black", linestyle="dashed")
         axs[1].scatter(gwfv_errs[:, mlev, j, :], gwfv_sigma[:, mlev, j, :], alpha=0.5, color="orange")
-        plt.xlabel("Ensemble Error (MAE) in Meridional GWD (m/s^2)")
-        plt.ylabel("Ensemble Uncertainty (1$\sigma$) in Meridional GWD (m/s^2)")
+        plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
+        plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
         plt.axis(ymax=3e-6)
-        plt.title("Meridional")
+        plt.title("Meridional GWD")
 
 
         save_plotname = f"{save_dir}/GWDs_errors_vs_1std_uncertainty_level{mlev}_lat{j*subsample_lat}.png"
-        plt.savefig(save_plotname)
+        plt.tight_layout()
+        plt.savefig(save_plotname, bbox_inches="tight")
 
 print(f"Done all plots for lev {mlev}. Saved as {save_plotname}")
            
