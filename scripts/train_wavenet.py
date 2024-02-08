@@ -44,20 +44,26 @@ parser.add_argument('--subset_time', metavar='subset_time', type=int,
                 time slicing can be implemented. Will allow (-30,60) for DJF')
 
 ## File names for training, valid, scaling and saving
+parser.add_argument('--data_dir', metavar='data_dir', type=str, 
+        default="/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/",
+        help="Location of training, validation, scaling files")
+parser.add_argument('--output_dir', metavar="output_dir", type=str,
+        default="/scratch/users/lauraman/WaveNetPyTorch/models/", 
+        help="Location of new output directory will be created here")
 parser.add_argument('--model_name', metavar='model_name', type=str, 
         help='name of model for saving (used to create new dir)')
 parser.add_argument('--filename', metavar='filename', type=str,
-        nargs='+', default="atmos_all_12",
+        nargs='+', default="atmos_all_43",
         help='filename for training data, can be multiple files. \
                 File suffix should be .nc and will be added if not present here')
 parser.add_argument('--scaler_filestart', metavar='scaler_filestart', 
-        type=str, default="atmos_all_12",
+        type=str, default="atmos_all_43",
         help='start of filename for files containing means and std \
                 for scaling:  should be consistent with training data \
-                e.g. atmos_all_12')
+                e.g. atmos_all_43')
 parser.add_argument('--valid_filename', metavar='valid_filename',
-        nargs='+', type=str, default="atmos_daily_11",
-        help='filename for validation data, e.g. atmos_all_13.\
+        nargs='+', type=str, default="atmos_daily_44",
+        help='filename for validation data, e.g. atmos_all_44.\
                 File suffix should be .nc and will be added if not present here')
 
 ## Arguments for training settings
@@ -94,7 +100,9 @@ if subset_time != None:
     subset_time = tuple(subset_time)
 
 # Filename arguments
+data_dir = args.data_dir
 model_name = args.model_name
+output_dir = args.output_dir
 if model_name == None:
     print("Model name not provided, expect errors - will not be able to save output.")
 if len(args.filename)==1:
@@ -124,8 +132,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(device)
 
 # Set up directories and files
-#data_dir = "/scratch/users/lauraman/MiMA/runs/train_wavenet/"
-data_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/train_wavenet/"
 print(f"Training file(s): {filename}")
 # Transform can be minmax or standard or none
 if transform == "standard":
@@ -158,7 +164,7 @@ valid_dataset = GravityWavesDataset(data_dir, valid_filename,
                                     component = component)
 
 # Save directories
-save_dir = f"/scratch/users/lauraman/WaveNetPyTorch/models/{model_name}/"
+save_dir = f"{output_dir}/{model_name}/"
 os.makedirs(save_dir, exist_ok=True)
 model_filename = f"wavenet_model.pth"
 path_to_model = f"{save_dir}{model_filename}"
