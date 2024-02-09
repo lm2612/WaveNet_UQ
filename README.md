@@ -1,18 +1,19 @@
 # WaveNet with Uncertainty Quantification
 WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
+Repository for data
+
 ## Neural network structure
 The neural network takes inputs at each grid lon/lat grid cell, some of which are defined as height profiles with dimension=40.
-INPUTS:
+
+INPUTS (total dim=82):
 * wind profile (zonal or meridional). dim=40
 * temperature profile. dim=40
 * latitude. dim=1
 * surface pressure. dim=1
-Total dimensions: 82
 
-OUTPUTS:
+OUTPUTS (total dim=40):
 * gravity wave drag profile (zonal or meridional) dim=40
-Total dimensions: 40
 
 Note, the inputs and outputs are either both zonal or both meridional. See Espinosa et al., 2022 for full details on the neural network.
 
@@ -37,10 +38,10 @@ GPU resources are not absolutely necessary for training, but are faster. For GPU
 Scripts for analyzing statistics and plotting can be found in `analysis`.
 
 # Quick start
-Download files from zenodo repository and run the example scripts or notebooks.
+Download files from SDR (link+doi to be added) repository and run the example notebook in `examples`. This provides a quick demo for how to open the data, load the model and start training.
 
 # Using the code
-The full process of generating the training data and coupling online involves working with the intermediate complexity climate model, MiMA, available here https://github.com/DataWaveProject/MiMA-machine-learning. 
+This describes the full process to reproduce results of the paper. Generating the training data and coupling online involves working with the intermediate complexity climate model, MiMA, available here https://github.com/DataWaveProject/MiMA-machine-learning. 
 
 ## 1. Generate training data using MiMA
 Follow steps here to compile and run MiMA: https://github.com/DataWaveProject/MiMA-machine-learning/tree/master
@@ -52,7 +53,7 @@ Note the diagnostic table `diag_table` which must include `"gwfu_cgwd"` and `"gw
 This will create files named `atmos_all_1.nc`,`atmos_all_2.nc`,`atmos_all_3.nc`,...
 which will be used for training, validation and offline testing.
 
-You can skip this step and download the data from zenodo repository.
+You can skip this step and download the data from SDR repository.
 
 
 ## 2. Train ensemble of neural networks, each seeded with different random number
@@ -83,8 +84,8 @@ python train_wavenet.py --component "zonal" --transform "standard"  --n_epoch 30
 
 To train the ensemble, repeat this many times with different random seeds.
 
-## 3. Test offline
-Once training is completed, we carry out offline testing. For this example we are testing on daily datasets rather than 3-hourly as these files are smaller (you can find them on the zenodo repository). This example tests on `atmos_daily_45.nc`. The script is in `scripts/test_wavenet.py` and uses almost identical arguments to the training script above.
+## 3. Analyze offline results
+Once training is completed, we carry out offline testing. For this example we are testing on daily datasets rather than 3-hourly as these files are smaller (you can find them on the SDR repository). This example tests on `atmos_daily_45.nc`. The script is in `scripts/test_wavenet.py` and uses almost identical arguments to the training script above.
 ```
 python test_wavenet.py --component "zonal" --transform "standard"  --data_dir "path/to/data" --output_dir "path/to/output"  --model_name "wavenet_zonal_seed1" --filename "atmos_daily_45.nc" --scaler_filestart "atmos_all_43"
 ```
@@ -97,14 +98,13 @@ python analysis/plot_GWD_profiles.py
 This script plots profiles for individual grid cells for each lon, lat, and timestep. You can subsample every n-th lon/lat/timestep if you do not want to create hundreds of plots. Note, you will need to edit filenames and directories.
 
 
-## 4. Test online
+## 4. Generate online coupled simulations
 For online testing, we need to use FTorch to couple MiMA to WaveNet
 ### 4a. Compile FTorch library 
-Follow instructions to set up FTorch library: https://github.com/Cambridge-ICCS/FTorch
-Note, FTorch is well-maintained by ICCS and this may have been updated. I compiled FTorch in June 2023.
+Follow instructions to set up FTorch library: https://github.com/Cambridge-ICCS/FTorch. Note, FTorch is well-maintained by ICCS and this may have been updated (for these results, FTorch was compiled in June 2023).
 
 ### 4b. Compile MiMA with FTorch library
-The exact version of MiMA that includes this version of WaveNet can be found here: https://github.com/lm2612/MiMA/tree/ML-laura
+The exact version of MiMA that includes this version of WaveNet can be found here: https://github.com/lm2612/MiMA/tree/ML-laura.
 ```
 git clone https://github.com/lm2612/MiMA
 cd MiMA
@@ -114,10 +114,6 @@ git checkout ML-laura
 This is completely based on the `ML` branch in https://github.com/DataWaveProject/MiMA-machine-learning/ but with some minor edits to
 `src/atmos_param/cg_drag/cg_drag.f90`. 
 Follow instructions to compile MiMA with the FTorch library.
-Run MiMA.
-Restart files used in this study can be found in `input/RESTART/`. These initialize the model with the state of the climate at the last 
-timestep of the validation dataset (`from atmos_all_44.nc`).
-
 
 ### 4c. Create torchscript version code 
 The WaveNet code is edited slightly for compatibility. You can find that in `src/WaveNet_for_MiMA.py`. The key differences are that we carry out scaling at evaluation time, as the climate model passes raw variables to the machine learning model.
@@ -129,9 +125,9 @@ The file `atmos_all_44.nc` is used to test the torchscript model. This script ch
 
 ### 4d. Run MiMA with NNs online
 Now, we can run MiMA with the NNs. We need to copy our torchscript models for both zonal and meridional components into the directory where we will run MiMA. You can find my scripts for setting up the directories and running MiMA in `mima_scripts/`, however, this will be dependent on architecture and directory names.
-We run one 20-year MiMA simulation for each NN ensemble member. Each of these should be initialized from the same point, such as the end of the validation dataset. Be sure to output winds (`ucomp` and `vcomp`) and gravity wave drag (`gwfu_cgwd` and `gwfv_cgwd`) in the `diag_table` file. I save output daily to files named `atmos_daily_45.nc`, `atmos_daily_46.nc`, ... `atmos_daily_65.nc`. You can also find these files for all ensemble members in the zenodo repository. With a 30 member ensemble and 20 years of simulation data for each member, we can examine statistics of the circulation.
+We run one 20-year MiMA simulation for each NN ensemble member. Each of these should be initialized from the same point, such as the end of the validation dataset. Be sure to output winds (`ucomp` and `vcomp`) and gravity wave drag (`gwfu_cgwd` and `gwfv_cgwd`) in the `diag_table` file. If you checkout my branch from step 4b, you will find these diagnostics in `input/diag_table` and the relevant restart files in `input/RESTART`. I save output daily to files named `atmos_daily_45.nc`, `atmos_daily_46.nc`, ... `atmos_daily_65.nc`. You can also find these files for all ensemble members in the SDR repository. With a 30 member ensemble and 20 years of simulation data for each member, we can examine statistics of the circulation.
 
-## 5. Test online
+## 5. Analyze online results
 We cannot compare online simulations to the AD99 simulations directly, because the simulations diverge with time. But we can plot gravity wave drag and wind distributions using the original AD99 simulation, the offline results from step 3 and the online results from step 4.
 ```
 python analysis/plot_distributions.py
@@ -141,6 +137,8 @@ In the `analysis` directory, you can also find code for saving, plotting and ana
 
 # Authors
 Please reach out to me if you have any issues: lauraman@stanford.edu
-Citation: 
+
+How to cite this will be added a later date. 
+
 
 
