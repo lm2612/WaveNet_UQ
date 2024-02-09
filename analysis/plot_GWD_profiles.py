@@ -39,8 +39,8 @@ save_dir = f"{online_dir}/PLOTS/"
 seeds = range(100, 130)
 n_seeds = len(seeds)
 
-subsample_time = 10 
-subsample_lat = 4
+subsample_time = 1 
+subsample_lat = 16
 subsample_lon = 16
 
 # Subsample
@@ -172,10 +172,6 @@ def plot_GWD_profile_std(t, j, i):
 for t in range(0, ntime//subsample_time):
     for j in range(0, nlat//subsample_lat):
         for i in range(0, nlon//subsample_lon):
-            plt.clf()
-            #fig=plot_GWD_profile(t, j, i)
-            #save_plotname = f"{save_dir}/GWDs_profile_ensemble_pred_offline_lat{j*subsample_lat}_lon{i*subsample_lon}_time{t*subsample_time}_seeds100-130.png"
-            #plt.savefig(save_plotname)
             plt.clf()
             fig=plot_GWD_profile_std(t, j, i)
             save_plotname = f"{save_dir}/GWDs_profile_mean_std_ensemble_pred_offline_lat{j*subsample_lat}_lon{i*subsample_lon}_time{t*subsample_time:03d}.png"
