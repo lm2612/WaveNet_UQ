@@ -3,6 +3,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import matplotlib
 
+from scipy import stats
 
 ###### Set up directories and files #####
 
@@ -81,37 +82,58 @@ lat_inds = [slice(0, 3), slice(9,12), slice(19,23), slice(30,34),
             slice(41,45), slice(52,55), slice(62, 64)]
 # Plot for a given height, lat and lon sample
 mlevs = [13, 17, 20, 23]
+# We will plot scatter points with more density in a darker color
+cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["orange", "darkorange", "red", "darkred"])
 for mlev in mlevs:
     plev = pfull[mlev]
     for j, lat_ind in enumerate(lat_inds):
         plt.clf()
         fig, axs = plt.subplots(1, 2 , figsize=(10, 4))
         # Zonal
+        errs = gwfu_errs[:, mlev, lat_ind, :].flatten()
+        sigma = gwfu_sigma[:, mlev, lat_ind, :].flatten()
+        # Calculate the point density for colors
+        xy = np.vstack([errs, sigma])
+        z = stats.gaussian_kde(xy)(xy)
+        idx = z.argsort()
+        errs, sigma, z = errs[idx], sigma[idx], z[idx]
+
+        # Plot
         plt.sca(axs[0])
         axs[0].plot([0., 4.e-6], [0., 4.e-6], color="black", linestyle="dashed")
-        axs[0].scatter(gwfu_errs[:, mlev, lat_ind, :], gwfu_sigma[:, mlev, lat_ind, :], alpha=0.25, color="orange")
+        axs[0].scatter(errs, sigma, alpha=0.25, c=z, cmap=cmap)
         # Labels, axes, title, etc.
         plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
         plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
-        plt.axis(ymax=3e-6)
+        plt.axis(ymax=3e-6, xmax=6e-6)
         plt.title("Zonal GWD")
         plt.text(x=-0.15, y=1.01, s="a)", fontsize=16, transform=axs[0].transAxes)
 
         # Meridional
+        errs = gwfv_errs[:, mlev, lat_ind, :].flatten()
+        sigma = gwfv_sigma[:, mlev, lat_ind, :].flatten()
+        # Calculate the point density for colors
+        xy = np.vstack([errs, sigma])
+        z = stats.gaussian_kde(xy)(xy)
+        idx = z.argsort()
+        errs, sigma, z = errs[idx], sigma[idx], z[idx]
+        # Plot
         plt.sca(axs[1])
         axs[1].plot([0., 4.e-6], [0., 4.e-6], color="black", linestyle="dashed")
-        axs[1].scatter(gwfv_errs[:, mlev, j, :], gwfv_sigma[:, mlev, j, :], alpha=0.25, color="orange")
+        axs[1].scatter(errs, sigma, alpha=0.25, c=z, cmap=cmap)
+
         # Labels, axes, titles, etc.
         plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
         plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
-        plt.axis(ymax=3e-6)
+        plt.axis(ymax=3e-6, xmax=6e-6)
         plt.title("Meridional GWD")
         plt.text(x=-0.15, y=1.01, s="b)", fontsize=16, transform=axs[1].transAxes)
 
         plt.suptitle(f"Confidence of neural networks at latitudes {labels[j]} at {plev:.1f} hPa")
 
         # Save
-        save_plotname = f"{save_dir}/GWDs_errors_vs_1std_uncertainty_level{mlev}_{labels[j]}.png"
+        save_label = labels[j].replace("$\degree$", "o")
+        save_plotname = f"{save_dir}/GWDs_errors_vs_1std_uncertainty_level{mlev}_{save_label}.png"
         plt.tight_layout()
         plt.savefig(save_plotname, bbox_inches="tight")
 
