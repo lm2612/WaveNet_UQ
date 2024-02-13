@@ -91,6 +91,9 @@ def plot_GWD_profile(t, j, i):
     ax.invert_yaxis()
     plt.ylabel("Pressure (hPa)")
     plt.axis(xmin=-4e-5, xmax=4e-5, ymin=1e2, ymax=1)
+    # Add a) label
+    plt.text(x=-0.15, y=1.01, s="a)", fontsize=16, transform=ax.transAxes)
+
 
     # Meridional
     ax = axs[1]
@@ -106,10 +109,9 @@ def plot_GWD_profile(t, j, i):
                 label=f"{n}")
     plt.xlabel("Meridional GWD (m$s^{-2}$)")
     plt.title("Meridional GWD")
-
-
-    #plt.legend(loc="lower left", ncol=3)
     plt.axis(xmin=-4e-5, xmax=4e-5)
+    # Add b) label
+    plt.text(x=-0.1, y=1.01, s="b)", fontsize=16, transform=ax.transAxes)
 
     plt.suptitle(f"{lat[j]:.1f}, {lon[i]:.1f}")
     return fig
@@ -141,6 +143,9 @@ def plot_GWD_profile_std(t, j, i):
     plt.ylabel("Pressure (hPa)")
     plt.axis(xmin=-4e-5, xmax=4e-5, ymin=3e2, ymax=1)
 
+    # Add a) label
+    plt.text(x=-0.15, y=1.01, s="a)", fontsize=16, transform=ax.transAxes)
+
     # Meridional
     ax = axs[1]
     plt.sca(ax)
@@ -160,11 +165,12 @@ def plot_GWD_profile_std(t, j, i):
                       label="Predicted 1 $\sigma$")
     plt.xlabel("Meridional GWD (m$s^{-2}$)")
     plt.title("Meridional GWD")
-
-
-    #plt.legend(loc="lower left", ncol=3)
     plt.axis(xmin=-4e-5, xmax=4e-5)
+        
+    # Add b) label
+    plt.text(x=-0.1, y=1.01, s="b)", fontsize=16, transform=ax.transAxes)
 
+    # Title
     plt.suptitle(f"Grid cell: ({lat[j]:.1f}\N{DEGREE SIGN}, {lon[i]:.1f}\N{DEGREE SIGN})")
     return fig
 

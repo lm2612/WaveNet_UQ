@@ -106,57 +106,21 @@ for i, rundir in enumerate(ML_dirs):
 
 print("All PV properties collected. Plotting...")
 
+# Plot as histograms (number of ssws is discrete so boxplots don't seem ideal here)
 plt.clf()
 fig, axs = plt.subplots(2, 1, figsize=(12, 8))
+
+# Northern hemisphere polar vortex
 plt.sca(axs[0])
-bp_ad99 = plt.boxplot(AD99_n_ssws_pd, vert=False, patch_artist=True, positions=[1], widths=0.8)
-bp_ad99['boxes'][0].set(color="grey", alpha=0.5)
-bp_ad99['medians'][0].set(color="black", linewidth=3)
-bp_ML = plt.boxplot(ML_n_ssws_pd, vert=False, patch_artist=True, positions=[0], widths=0.8)
-bp_ML['boxes'][0].set(color="orange", alpha=0.5)
-bp_ML['medians'][0].set(color="red", linewidth=3)
-plt.scatter(all_n_ssws_pd_nh["ad99"], np.ones(len(all_n_ssws_pd_nh["ad99"])), color="gray", alpha=0.5)
-for seed in range(n_seeds):
-    p_seed = all_n_ssws_pd_nh[f"seed{seed+1}"]
-    plt.scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
-#plt.axis(xmin=17, xmax=37, ymin=-1, ymax=2)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
-plt.xticks(fontsize=16)
-plt.xlabel("Northern hemisphere: Number of SSWs per decade", fontsize=20)
-
-plt.sca(axs[1])
-bp_ad99 = plt.boxplot(AD99_lifetime, vert=False, patch_artist=True, positions=[1], widths=0.8)
-bp_ad99['boxes'][0].set(color="grey", alpha=0.5)
-bp_ad99['medians'][0].set(color="black", linewidth=3)
-bp_ML = plt.boxplot(ML_pv_lifetime, vert=False, patch_artist=True, positions=[0], widths=0.8)
-bp_ML['boxes'][0].set(color="orange", alpha=0.5)
-bp_ML['medians'][0].set(color="red", linewidth=3)
-plt.scatter(all_pv_lifetime_sh["ad99"], np.ones(len(all_pv_lifetime_sh["ad99"])), color="gray", alpha=0.5)
-for seed in range(n_seeds):
-    p_seed = all_pv_lifetime_sh[f"seed{seed+1}"]
-    plt.scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
-#plt.axis(xmin=20, xmax=37, ymin=-1, ymax=2)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
-plt.xticks(fontsize=16)
-plt.xlabel("Southern hemisphere: polar vortex lifetime (days)", fontsize=20)
-plt.tight_layout()
-save_as = f"{save_dir}/PV_boxplots_plev{plev}hPa.png"
-plt.savefig(save_as)
-
-
-print("Plotting done.")
-print(f"Plot saved as {save_as}")
-
-plt.clf()
-fig, axs = plt.subplots(2, 1, figsize=(12, 8))
-plt.sca(axs[0])
-bp_ad99 = plt.hist(AD99_n_ssws_pd, bins=np.arange(0, 12., 2.), density=True, color="grey", alpha=0.5, label="AD99")
-bp_ML = plt.hist(ML_n_ssws_pd, bins=np.arange(0, 12., 2.), density=True, color="orange", alpha=0.5, label="NN")
+plt.hist(AD99_n_ssws_pd, bins=np.arange(0, 12., 2.), density=True, color="grey", alpha=0.5, label="AD99")
+plt.hist(ML_n_ssws_pd, bins=np.arange(0, 12., 2.), density=True, color="orange", alpha=0.5, label="NN")
 plt.legend(fontsize=20)
 plt.yticks(fontsize=16)
 plt.xticks(fontsize=16)
 plt.xlabel("Northern hemisphere: Number of SSWs per decade", fontsize=20)
+plt.text(x=-0.08, y=1.0, s="a)", fontsize=20, transform=axs[0].transAxes)
 
+# Southern hemisphere polar vortex
 plt.sca(axs[1])
 bp_ad99 = plt.hist(AD99_lifetime, density=True, color="grey", alpha=0.5, label="AD99")
 bp_ML = plt.hist(ML_pv_lifetime, density=True, color="orange", alpha=0.5, label="NN")
@@ -164,12 +128,11 @@ plt.legend(fontsize=20)
 plt.yticks(fontsize=16)
 plt.xticks(fontsize=16)
 plt.xlabel("Southern hemisphere: Polar vortex lifetime (days)", fontsize=20)
+plt.text(x=-0.08, y=1.0, s="b)", fontsize=20, transform=axs[1].transAxes)
 
 plt.tight_layout()
 save_as = f"{save_dir}/PV_hist_plev{plev}hPa.png"
 plt.savefig(save_as)
-
-
 
 print("Plotting done.")
 print(f"Plot saved as {save_as}")

@@ -15,7 +15,7 @@ offline_dir = "/scratch/users/lauraman/WaveNetPyTorch/models/"
 online_dir = "/scratch/users/lauraman/WaveNetPyTorch/mima_runs/"
 model_start = "wavenet_1"
 save_dir = f"{online_dir}/PLOTS/"
-t_range = range(55, 63) ## TEMP
+t_range = range(55, 63) 
 n_t = len(t_range)
 filenames = [f"atmos_daily_{t}.nc" for t in t_range]
 
@@ -43,7 +43,7 @@ for filename in filenames[1:]:
 
 # Set seeds
 model_start = "wavenet_1"
-seeds = list(range(100,130))
+seeds = list(range(100, 130))
 n_seeds = len(seeds)
 seed_inds = np.arange(n_seeds)
 ntime = 360*n_t
@@ -71,25 +71,6 @@ season_names = list(seasons.keys())
 
 levs = [13, 17, 23] 
 npfull_reg = npfull
-
-def plot_hist(true, online_pred, offline_pred=None, ax=None,
-        xlabel="", title=""):
-    if ax is None:
-        fig, ax = plt.subplot(1,1, figsize=(5, 4))
-    plt.sca(ax)
-    if offline_pred is not None:
-        plt.hist(offline_pred.flatten(), bins=30, color="blue",
-                histtype="step", density=True, label="Offline")
-    plt.hist(online_pred.flatten(), bins=30, color="red",
-            histtype="step", density=True, label="Online")
-    plt.hist(true.flatten(), bins=30, color="black",
-            histtype="step", density=True, label="AD99")
-
-    #ax.set_yscale("log")
-    plt.xlabel(xlabel)
-    plt.legend()
-    plt.title(title)
-    return ax
 
 def plot_distribution(true, online_pred, offline_pred=None, ax=None,
         xlabel="", title="", x=np.arange(-3e-5, 3.2e-5, 1e-7)):
@@ -158,14 +139,22 @@ for region_name in region_names:
             season_inds = seasons[season_name]
             ### Plot GWFU
             fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
+            plt.sca(axs[0])
             plot_distribution(true_gwfu[season_inds, lev], 
                     online_gwfu_preds[:, season_inds, lev], 
                     offline_gwfu_preds[:, season_inds, lev],
                     ax=axs[0], xlabel="Zonal GWD (ms$^{-2}$)", title="Zonal", x=np.arange(-1e-5, 1.01e-5, 2e-7))
+            # Add a) label
+            plt.text(x=-0.15, y=1.02, s="a)", fontsize=16, transform=axs[0].transAxes)
+
+            plt.sca(axs[1])
             plot_distribution(true_gwfv[season_inds, lev], 
                     online_gwfv_preds[:, season_inds, lev], 
                     offline_gwfv_preds[:, season_inds, lev],
                     ax=axs[1], xlabel="Meridional GWD (ms$^{-2}$)", title="Meridional", x=np.arange(-1e-5, 1.01e-5, 2e-7))
+            # Add b) label
+            plt.text(x=-0.05, y=1.02, s="b)", fontsize=16, transform=axs[1].transAxes)
+
 
             if season_name == "ANN":
                 plt.suptitle(f"Distributions of Gravity Wave Drag for {region_name} at {pfull[lev]:.1f} hPa")
@@ -182,10 +171,15 @@ for region_name in region_names:
 
             ### Plot wind
             fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
+            plt.sca(axs[0])
             plot_distribution(true_u[season_inds, lev], online_u_preds[:, season_inds, lev],
                             ax=axs[0], xlabel="Zonal wind (ms$^{-1}$)", title="Zonal", x=np.arange(-60, 60.1, 1) )
+            plt.text(x=-0.1, y=1.02, s="a)", fontsize=16, transform=axs[0].transAxes)
+
+            plt.sca(axs[1])
             plot_distribution(true_v[season_inds, lev], online_v_preds[:, season_inds, lev], 
                     ax=axs[1], xlabel="Meridional wind (ms$^{-1}$)", title="Meridional",  x=np.arange(-60, 60.1, 1) )
+            plt.text(x=-0.05, y=1.02, s="b)", fontsize=16, transform=axs[1].transAxes)
 
             if season_name == "ANN":
                 plt.suptitle(f"Distributions of Wind for {region_name} at {pfull[lev]:.1f} hPa")
@@ -196,39 +190,3 @@ for region_name in region_names:
             plt.savefig(save_as)
             print(f"Saved as {save_as}")
             
-            ## HISTS
-            plt.clf()
-            fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
-            plot_hist(true_gwfu[season_inds, lev],
-                    online_gwfu_preds[:, season_inds, lev],
-                    offline_gwfu_preds[:, season_inds, lev],
-                    ax=axs[0], xlabel="Zonal GWD (ms$^{-2}$)", title="Zonal")
-            plot_hist(true_gwfv[season_inds, lev],
-                    online_gwfv_preds[:, season_inds, lev],
-                    offline_gwfv_preds[:, season_inds, lev],
-                    ax=axs[1], xlabel="Meridional GWD (ms$^{-2}$)", title="Meridional")
-
-            plt.suptitle(f"Histogram of Gravity Wave Drag for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
-            plt.tight_layout()
-            save_as = f"{save_dir}/Histogram_of_GWD_{season_name}_{region_name}_lev{lev}.png"
-            plt.savefig(save_as)
-            print(f"Saved as {save_as}")
-
-            plt.clf()
-            fig, axs = plt.subplots(1,2, figsize=(10, 4), sharey=True)
-            plot_hist(true_u[season_inds, lev],
-                    online_u_preds[:, season_inds, lev],
-                    ax=axs[0], xlabel="Zonal wind (ms$^{-1}$)", title="Zonal")
-            plot_hist(true_v[season_inds, lev],
-                    online_v_preds[:, season_inds, lev],
-                    ax=axs[1], xlabel="Meridional wind (ms$^{-1}$)", title="Meridional")
-
-            plt.suptitle(f"Histogram of Wind for {season_name} in {region_name} at {pfull[lev]:.1f} hPa")
-            plt.tight_layout()
-            save_as = f"{save_dir}/Histogram_of_wind_{season_name}_{region_name}_lev{lev}.png"
-            plt.savefig(save_as)
-            print(f"Saved as {save_as}")
-
-
-
-

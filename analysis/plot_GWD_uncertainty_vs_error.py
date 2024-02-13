@@ -41,7 +41,7 @@ n_seeds = len(seeds)
 
 # Subsample for cost reasons
 subsample_time = 10 
-subsample_lat = 4
+subsample_lat = 1
 
 # Subsample
 gwfu_preds = np.zeros((n_seeds, ntime//subsample_time, npfull, nlat//subsample_lat, nlon ))
@@ -73,32 +73,45 @@ gwfv_sigma = np.std(gwfv_preds, axis=0)
 gwfu_errs = np.mean(np.abs(gwfu_preds - gwfu_ad99.to_numpy()), axis=0)
 gwfv_errs = np.mean(np.abs(gwfv_preds - gwfv_ad99.to_numpy()), axis=0)
 
+
+# Select latitude bands for subseting data and plotting
+labels = ["<85$\degree$S", "55$\degree$-65$\degree$S", "25$\degree$-35$\degree$S",
+                  "5$\degree$S-5$\degree$N", "25$\degree$-35$\degree$N", "55$\degree$-65$\degree$N", ">85$\degree$N"]
+lat_inds = [slice(0, 3), slice(9,12), slice(19,23), slice(30,34),
+            slice(41,45), slice(52,55), slice(62, 64)]
 # Plot for a given height, lat and lon sample
 mlevs = [13, 17, 20, 23]
 for mlev in mlevs:
     plev = pfull[mlev]
-    for j in range(0, nlat//subsample_lat):
+    for j, lat_ind in enumerate(lat_inds):
         plt.clf()
         fig, axs = plt.subplots(1, 2 , figsize=(10, 4))
+        # Zonal
         plt.sca(axs[0])
         axs[0].plot([0., 4.e-6], [0., 4.e-6], color="black", linestyle="dashed")
-        axs[0].scatter(gwfu_errs[:, mlev, j, :], gwfu_sigma[:, mlev, j, :], alpha=0.5, color="orange")
-        
+        axs[0].scatter(gwfu_errs[:, mlev, lat_ind, :], gwfu_sigma[:, mlev, lat_ind, :], alpha=0.25, color="orange")
+        # Labels, axes, title, etc.
         plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
         plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
         plt.axis(ymax=3e-6)
         plt.title("Zonal GWD")
+        plt.text(x=-0.15, y=1.01, s="a)", fontsize=16, transform=axs[0].transAxes)
 
+        # Meridional
         plt.sca(axs[1])
         axs[1].plot([0., 4.e-6], [0., 4.e-6], color="black", linestyle="dashed")
-        axs[1].scatter(gwfv_errs[:, mlev, j, :], gwfv_sigma[:, mlev, j, :], alpha=0.5, color="orange")
+        axs[1].scatter(gwfv_errs[:, mlev, j, :], gwfv_sigma[:, mlev, j, :], alpha=0.25, color="orange")
+        # Labels, axes, titles, etc.
         plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
         plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
         plt.axis(ymax=3e-6)
         plt.title("Meridional GWD")
+        plt.text(x=-0.15, y=1.01, s="b)", fontsize=16, transform=axs[1].transAxes)
 
+        plt.suptitle(f"Confidence of neural networks at latitudes {labels[j]} at {plev:.1f} hPa")
 
-        save_plotname = f"{save_dir}/GWDs_errors_vs_1std_uncertainty_level{mlev}_lat{j*subsample_lat}.png"
+        # Save
+        save_plotname = f"{save_dir}/GWDs_errors_vs_1std_uncertainty_level{mlev}_{labels[j]}.png"
         plt.tight_layout()
         plt.savefig(save_plotname, bbox_inches="tight")
 

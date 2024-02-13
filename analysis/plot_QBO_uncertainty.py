@@ -72,44 +72,21 @@ for i, dirname in enumerate(ML_dirs):
 
 print("All periods and amplitudes collected. Plotting...")
 
-plt.clf()
-fig, axs = plt.subplots(2, 1, figsize=(12, 8))
-plt.sca(axs[0])
-bp_ad99 = plt.boxplot(AD99_periods, vert=False, patch_artist=True, positions=[1], widths=0.8)
-bp_ad99['boxes'][0].set(color="grey", alpha=0.5)
-bp_ad99['medians'][0].set(color="black", linewidth=3)
-bp_ML = plt.boxplot(ML_periods, vert=False, patch_artist=True, positions=[0], widths=0.8)
-bp_ML['boxes'][0].set(color="orange", alpha=0.5)
-bp_ML['medians'][0].set(color="red", linewidth=3)
-plt.scatter(all_periods["ad99"], np.ones(len(all_periods["ad99"])), color="gray", alpha=0.5)
-for seed in range(n_seeds):
-    p_seed = all_periods[f"seed{seed+1}"]
-    plt.scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
-plt.axis(xmin=17, xmax=37, ymin=-1, ymax=2)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
-plt.xticks(fontsize=16)
-plt.xlabel("QBO Period (months)", fontsize=20)
-
-plt.sca(axs[1])
-bp_ad99 = plt.boxplot(AD99_amps, vert=False, patch_artist=True, positions=[1], widths=0.8)
-bp_ad99['boxes'][0].set(color="grey", alpha=0.5)
-bp_ad99['medians'][0].set(color="black", linewidth=3)
-bp_ML = plt.boxplot(ML_amps, vert=False, patch_artist=True, positions=[0], widths=0.8)
-bp_ML['boxes'][0].set(color="orange", alpha=0.5)
-bp_ML['medians'][0].set(color="red", linewidth=3)
-plt.scatter(all_amps["ad99"], np.ones(len(all_amps["ad99"])), color="gray", alpha=0.5)
-for seed in range(n_seeds):
-    p_seed = all_amps[f"seed{seed+1}"]
-    plt.scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
-plt.axis(xmin=20, xmax=37, ymin=-1, ymax=2)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
-plt.xticks(fontsize=16)
-plt.xlabel("QBO Amplitude (m/s)", fontsize=20)
-plt.tight_layout()
-save_as = f"{save_dir}/QBO_boxplots_plev{plev}hPa.png"
-plt.savefig(save_as)
+# Boxplots alone are not that informative: we cannot see the full distribution
+# So we plot violin plots with boxplots on top
+# Need to define a custom violin plot function for formatting
 
 def custom_violin_plot(ax, data, positions, col1="gray", col2="black"):
+    """ Plot horizontal violin plot on axes ax, for data, in position along y-axis
+    Args:
+        * ax: matplotlib axis
+        * data: data points e.g., in list or nd numpy array
+        * positions: position to plot 1d for list or nd for numpy array
+        * col1: face color of the violin plot (note it will be 50% transparancy)
+        * col2: edge color of violin plot
+    Returns:
+        * dictionary containing all parts of the violin plot (body, edges, etc.)
+    """
     parts = ax.violinplot(data,
                           vert=False,
                           positions = positions,
@@ -124,85 +101,63 @@ def custom_violin_plot(ax, data, positions, col1="gray", col2="black"):
 
 
     quartile1, medians, quartile3 = np.percentile(data, [25, 50, 75], axis=0)
-
-    #ax.vlines(positions, quartile1, quartile3, color=col2, linestyle='-', lw=5, alpha=0.8)
     ax.scatter(positions, medians, marker='_', color='white', s=30, zorder=3, alpha=1)
 
     return parts
 
-
+## Create horizontal violin plots with box plot overlaid. AD99 at y=1 and ML ensemble at  y=0
 plt.clf()
 fig, axs = plt.subplots(2, 1, figsize=(12, 8))
+# QBO period
 plt.sca(axs[0])
-bp_ad99 = custom_violin_plot(axs[0],  AD99_periods, positions = [1], col1="gray", col2="black")
-bp_ml = custom_violin_plot(axs[0], ML_periods, positions=[0], col1="orange", col2="red")
+# Create violin plots (vp)
+vp_ad99 = custom_violin_plot(axs[0],  AD99_periods, positions = [1], col1="gray", col2="black")
+vp_ml = custom_violin_plot(axs[0], ML_periods, positions=[0], col1="orange", col2="red")
+# Add box plot (bp) on top to show median, interquartile ranges
 bp_ad99 = plt.boxplot(AD99_periods, vert=False, patch_artist=True, positions=[1], widths=0.3, zorder=10)
 bp_ad99['boxes'][0].set(color="grey", edgecolor="black", alpha=0.5)
 bp_ad99['medians'][0].set(color="black", linewidth=3)
-
 bp_ML = plt.boxplot(ML_periods, vert=False, patch_artist=True, positions=[0], widths=0.3, zorder=10)
 bp_ML['boxes'][0].set(color="orange", edgecolor="red", alpha=0.5)
 bp_ML['medians'][0].set(color="red", linewidth=3)
-
+# Add individual points as scatter points
 axs[0].scatter(all_periods["ad99"], np.ones(len(all_periods["ad99"])), color="black", alpha=0.3, zorder=20)
 for seed in range(n_seeds):
     p_seed = all_periods[f"seed{seed+1}"]
     axs[0].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.3, zorder=20)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
+# Labels, axes, etc
+plt.yticks([1, 0], ["AD99","NN"], fontsize=20)
 plt.axis(ymin=-1, ymax=2, xmin=20)
 plt.xticks(fontsize=16)
 plt.xlabel("QBO Period (months)", fontsize=20)
+plt.text(x=-0.08 , y=1.0, s="a)", fontsize=20, transform=axs[0].transAxes)
 
+# QBO amplitudes
 plt.sca(axs[1])
-bp_ad99 = custom_violin_plot(axs[1],  AD99_amps, positions = [1], col1="gray", col2="black")
-bp_ml = custom_violin_plot(axs[1], ML_amps, positions=[0], col1="orange", col2="red")
+# Create violin plots (vp)
+vp_ad99 = custom_violin_plot(axs[1],  AD99_amps, positions = [1], col1="gray", col2="black")
+vp_ml = custom_violin_plot(axs[1], ML_amps, positions=[0], col1="orange", col2="red")
+# Add box plot (bp) on top to show median, interquartile ranges
 bp_ad99 = plt.boxplot(AD99_amps, vert=False, patch_artist=True, positions=[1], widths=0.3, zorder=10)
 bp_ad99['boxes'][0].set(color="grey", edgecolor="black", alpha=0.5)
 bp_ad99['medians'][0].set(color="black", linewidth=3)
 bp_ML = plt.boxplot(ML_amps, vert=False, patch_artist=True, positions=[0], widths=0.3, zorder=10)
 bp_ML['boxes'][0].set(color="orange", edgecolor="red", alpha=0.5)
 bp_ML['medians'][0].set(color="red", linewidth=3)
-
+# Add individual points as scatter points
 axs[1].scatter(all_amps["ad99"], np.ones(len(all_amps["ad99"])), color="black", alpha=0.3, zorder=20)
 for seed in range(n_seeds):
     p_seed = all_amps[f"seed{seed+1}"]
     axs[1].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.3, zorder=20)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
+# Labels, axes, etc
+plt.yticks([1, 0], ["AD99","NN"], fontsize=20)
 plt.xticks(fontsize=16)
 plt.xlabel("QBO Amplitude (m/s)", fontsize=20)
 plt.axis(ymin=-1, ymax=2, xmin=15)
+plt.text(x=-0.08, y=1.0, s="b)", fontsize=20, transform=axs[1].transAxes)
+
 plt.tight_layout()
 save_as = f"{save_dir}/QBO_violin_and_boxplots_plev{plev}hPa.png"
-plt.savefig(save_as)
-
-
-plt.clf()
-fig, axs = plt.subplots(2, 1, figsize=(12, 8))
-plt.sca(axs[0])
-bp_ad99 = custom_violin_plot(axs[0],  AD99_periods, positions = [1], col1="gray", col2="black")
-bp_ml = custom_violin_plot(axs[0], ML_periods, positions=[0], col1="orange", col2="red")
-axs[0].scatter(all_periods["ad99"], np.ones(len(all_periods["ad99"])), color="black", alpha=0.5)
-for seed in range(n_seeds):
-    p_seed = all_periods[f"seed{seed+1}"]
-    axs[0].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
-plt.axis(ymin=-1, ymax=2)
-plt.xticks(fontsize=16)
-plt.xlabel("QBO Period (months)", fontsize=20)
-
-plt.sca(axs[1])
-bp_ad99 = custom_violin_plot(axs[1],  AD99_amps, positions = [1], col1="gray", col2="black")
-bp_ml = custom_violin_plot(axs[1], ML_amps, positions=[0], col1="orange", col2="red")
-axs[1].scatter(all_amps["ad99"], np.ones(len(all_amps["ad99"])), color="black", alpha=0.5)
-for seed in range(n_seeds):
-    p_seed = all_amps[f"seed{seed+1}"]
-    axs[1].scatter(p_seed, np.zeros(len(p_seed)), color="red", alpha=0.5)
-plt.yticks([1, 0], ["AD99","NN"], fontsize=24)
-plt.xticks(fontsize=16)
-plt.xlabel("QBO Amplitude (m/s)", fontsize=20)
-plt.axis(ymin=-1, ymax=2)
-plt.tight_layout()
-save_as = f"{save_dir}/QBO_violinplots_plev{plev}hPa.png"
 plt.savefig(save_as)
 
 
