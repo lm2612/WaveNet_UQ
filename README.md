@@ -3,7 +3,7 @@ WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet t
 
 Repository for data:
 
-![predictedGWD](.plots/GWD_profile_at_equator.gif)
+![predictedGWD](./GWD_profile_at_equator.gif)
 
 ## Neural network structure
 The neural network takes inputs at each grid lon/lat grid cell, some of which are defined as height profiles with dimension=40.
