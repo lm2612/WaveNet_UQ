@@ -1,7 +1,7 @@
 # WaveNet with Uncertainty Quantification
 WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
-Repository for data:
+Data will become available on the Stanford Digital Repository shortly.
 
 ![predictedGWD](./GWD_profile_at_equator.gif)
 
