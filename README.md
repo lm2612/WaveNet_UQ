@@ -1,7 +1,9 @@
 # WaveNet with Uncertainty Quantification
 WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
-Repository for data
+Repository for data:
+
+![](https://github.com/lm2612/WaveNet_UQ/plots/GWD_profile_at_equator.gif)
 
 ## Neural network structure
 The neural network takes inputs at each grid lon/lat grid cell, some of which are defined as height profiles with dimension=40.
@@ -18,10 +20,9 @@ OUTPUTS (total dim=40):
 Note, the inputs and outputs are either both zonal or both meridional. See Espinosa et al., 2022 for full details on the neural network.
 
 ## Dependencies
-Model of an idealized Moist Atmosphere: https://github.com/DataWaveProject/MiMA-machine-learning
-FTorch coupling library: https://github.com/Cambridge-ICCS/FTorch
-For training, testing, plotting, analysis in python: torch, xarray, matplotlib
-
+* Model of an idealized Moist Atmosphere: https://github.com/DataWaveProject/MiMA-machine-learning.
+* FTorch coupling library: https://github.com/Cambridge-ICCS/FTorch.
+* For training, testing, plotting, analysis in python: torch, xarray, matplotlib.
 GPU resources are not absolutely necessary for training, but are faster. For GPU training, you also need cuda. 
 
 # Source code
