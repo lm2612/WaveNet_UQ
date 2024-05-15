@@ -1,3 +1,6 @@
+
+[![DOI](https://zenodo.org/badge/648818482.svg)](https://zenodo.org/doi/10.5281/zenodo.11200997)
+
 # WaveNet with Uncertainty Quantification
 WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
