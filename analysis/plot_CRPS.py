@@ -75,7 +75,7 @@ gwfu_ad99 = np.moveaxis(gwfu_ad99, -1, 0).reshape(( (ntime//subsample_time)*(nlo
 gwfv_ad99 = np.moveaxis(gwfv_ad99, -1, 0).reshape(( (ntime//subsample_time)*(nlon//subsample_lon), npfull, nlat//subsample_lat) )
    
 
-def crps(y_true, y_pred, sample_weight=None):
+def crps(y_true, y_pred, sample_weight=None, norm=False):
     """Calculate Continuous Ranked Probability Score
     Data based on size (N, np_full) where N=number of samples (in time, lat, lon) and np_full is height (=40) 
     Args:
@@ -87,9 +87,12 @@ def crps(y_true, y_pred, sample_weight=None):
     diff = y_pred[1:] - y_pred[:-1]
     weight = np.arange(1, num_samples) * np.arange(num_samples - 1, 0, -1)
     weight = np.expand_dims(weight, (-2,-1))
-    y_true = np.expand_dims(y_true, 0)
-    absolute_error = np.mean(np.abs(y_pred - y_true), axis=(0)) 
+    ##y_true = np.expand_dims(y_true, 0)
+    absolute_error = np.mean(np.abs(y_pred - np.expand_dims(y_true, 0)), axis=(0)) 
     per_obs_crps = absolute_error - np.sum(diff * weight, axis=0) / num_samples**2
+    if norm:
+        crps_normalized = np.where(np.abs(y_true)> 1E-14, per_obs_crps/np.abs(y_true), np.nan)
+        return np.nanmean(crps_normalized, axis=0)
     return np.average(per_obs_crps, axis=0, weights=sample_weight)
 
 # CRPS plot
@@ -117,8 +120,8 @@ for i, lat_ind in enumerate(lat_inds):
     # Plot
     plt.semilogy(crps_u, pfull,  color=cmap[i], label=labels[i])
 # Labels, axis, legends
-plt.xlabel("Zonal GWD (ms$^{-2}$)")
-plt.title("Zonal GWD")
+plt.xlabel("CRPS for Zonal GWD (ms$^{-2}$)")
+plt.title("Zonal")
 ax.invert_yaxis()
 plt.ylabel("Pressure (hPa)")
 plt.legend()
@@ -141,8 +144,8 @@ for i, lat_ind in enumerate(lat_inds):
     # Plot
     plt.semilogy(crps_v, pfull,  color=cmap[i], label=labels[i])
 # Labels, axis, legends
-plt.xlabel("Meridional GWD (ms$^{-2}$)")
-plt.title("Meridional GWD")
+plt.xlabel("CRPS for Meridional GWD (ms$^{-2}$)")
+plt.title("Meridional")
 plt.legend()
 plt.axis(xmin=0, xmax=5e-6) 
 # Add b) label
@@ -154,4 +157,63 @@ plt.savefig(save_plotname)
 
 print(f"Done saved as {save_plotname}")
            
+
+# Normalized crps
+plt.clf()
+fig, axs = plt.subplots(1, 2 , figsize=(10, 5), sharey = True)
+
+## Zonal
+ax = axs[0]
+plt.sca(ax)
+for i, lat_ind in enumerate(lat_inds):
+    # Select all gwfu in this latitude range
+    gwfu_ad99_lat = gwfu_ad99[..., lat_ind]
+    # Reshape to (N, npfull)
+    nlat_ind = gwfu_ad99_lat.shape[-1]
+    gwfu_ad99_lat = np.moveaxis(gwfu_ad99[..., lat_ind], -1, 0).reshape((ntime*nlon*nlat_ind, npfull))
+    gwfu_preds_lat = np.moveaxis(gwfu_preds[..., lat_ind], -1, 1).reshape((n_seeds, ntime*nlon*nlat_ind, npfull))
+    # CRPS
+    crps_u = crps(gwfu_ad99_lat, gwfu_preds_lat, norm=True)
+    # Plot
+    plt.semilogy(crps_u, pfull,  color=cmap[i], label=labels[i])
+# Labels, axis, legends
+plt.xlabel("Normalized CRPS for Zonal GWD")
+plt.title("Zonal")
+ax.invert_yaxis()
+plt.ylabel("Pressure (hPa)")
+plt.legend()
+#plt.axis(xmin=0, xmax=5e-6, ymin=3e2, ymax=1)
+plt.axis(xmin=0, ymin=3e2, ymax=1, xmax=30)
+# Add a) label
+plt.text(x=-0.15, y=1.01, s="a)", fontsize=16, transform=ax.transAxes)
+
+## Meridional
+ax = axs[1]
+plt.sca(ax)
+for i, lat_ind in enumerate(lat_inds):
+    # Select all gwfv in this latitude range
+    gwfv_ad99_lat = gwfv_ad99[..., lat_ind]
+    # Reshape to (N, npfull)
+    nlat_ind = gwfv_ad99_lat.shape[-1]
+    gwfv_ad99_lat = np.moveaxis(gwfv_ad99[..., lat_ind], -1, 0).reshape((ntime*nlon*nlat_ind, npfull))
+    gwfv_preds_lat = np.moveaxis(gwfv_preds[..., lat_ind], -1, 1).reshape((n_seeds, ntime*nlon*nlat_ind, npfull))
+    # CRPS
+    crps_v = crps(gwfv_ad99_lat, gwfv_preds_lat, norm=True)
+    # Plot
+    plt.semilogy(crps_v, pfull,  color=cmap[i], label=labels[i])
+# Labels, axis, legends
+plt.xlabel("Normalized CRPS for Meridional GWD")
+plt.title("Meridional")
+plt.legend()
+#plt.axis(xmin=0, xmax=5e-6)
+plt.axis(xmin=0, xmax = 30)
+# Add b) label
+plt.text(x=-0.1, y=1.01, s="b)", fontsize=16, transform=ax.transAxes)
+
+plt.suptitle("Continuous Ranked Probability Score")
+save_plotname = f"{save_dir}/GWD_err_normalized_CRPS_profile.png"
+plt.savefig(save_plotname)
+
+print(f"Done saved as {save_plotname}")
+    
 
