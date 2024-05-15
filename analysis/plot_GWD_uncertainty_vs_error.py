@@ -106,7 +106,7 @@ for mlev in mlevs:
         plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
         plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
         plt.axis(ymax=3e-6, xmax=6e-6)
-        plt.title("Zonal GWD")
+        plt.title("Zonal")
         plt.text(x=-0.15, y=1.01, s="a)", fontsize=16, transform=axs[0].transAxes)
 
         # Meridional
@@ -126,7 +126,7 @@ for mlev in mlevs:
         plt.xlabel("Ensemble Mean Absolute Error (ms$^{-2}$)")
         plt.ylabel("Ensemble 1$\sigma$ Uncertainty (ms$^{-2}$)")
         plt.axis(ymax=3e-6, xmax=6e-6)
-        plt.title("Meridional GWD")
+        plt.title("Meridional")
         plt.text(x=-0.15, y=1.01, s="b)", fontsize=16, transform=axs[1].transAxes)
 
         plt.suptitle(f"Confidence of neural networks at latitudes {labels[j]} at {plev:.1f} hPa")
