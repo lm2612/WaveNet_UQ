@@ -4,7 +4,7 @@
 
 # Uncertainty Quantification of a Machine Learning Subgrid-Scale Parameterization for Atmospheric Gravity Waves
 
-Code accompanying paper [Mansfield & Sheshadri (2024)](https://doi.org/10.1029/2024MS004292), where we carry out uncertainty quantification of a machine learning subgrd-scale parameterization of atmospheric gravity waves (WaveNet) using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA ([Espinosa et al., 2022](https://doi.org/10.1029/2022GL098174). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
+Code accompanying paper [Mansfield & Sheshadri (2024)](https://doi.org/10.1029/2024MS004292), where we carry out uncertainty quantification of a machine learning subgrd-scale parameterization of atmospheric gravity waves (WaveNet) using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA ([Espinosa et al., 2022](https://doi.org/10.1029/2022GL098174)). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
 Data is available on the [Stanford Digital Repository](https://doi.org/10.25740/zv875tm6846)
 
