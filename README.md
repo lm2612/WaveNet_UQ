@@ -1,10 +1,12 @@
 
 [![DOI](https://zenodo.org/badge/648818482.svg)](https://zenodo.org/doi/10.5281/zenodo.11200997)
 
-# WaveNet with Uncertainty Quantification
-WaveNet with Uncertainty Quantification using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA (Espinosa et al., 2022). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
 
-Data will become available on the Stanford Digital Repository shortly.
+# Uncertainty Quantification of a Machine Learning Subgrid-Scale Parameterization for Atmospheric Gravity Waves
+
+Code accompanying paper [Mansfield & Sheshadri (2024)](https://doi.org/10.1029/2024MS004292), where we carry out uncertainty quantification of a machine learning subgrd-scale parameterization of atmospheric gravity waves (WaveNet) using deep ensembles. Based on WaveNet that emulates AD99 gravity wave scheme in MiMA ([Espinosa et al., 2022](https://doi.org/10.1029/2022GL098174). PyTorch version of WaveNet has been adapted based on versions written by Minah Yang (https://github.com/yangminah) and Dave Connelly (https://github.com/dsconnelly).
+
+Data is available on the [Stanford Digital Repository](https://doi.org/10.25740/zv875tm6846)
 
 ![predictedGWD](./GWD_profile_at_equator.gif)
 
@@ -140,9 +142,22 @@ python analysis/plot_distributions.py
 In the `analysis` directory, you can also find code for saving, plotting and analyzing QBO and polar vortex winds. This directory contains all scripts used to generate plots in the paper. Note that you will need to edit directory names and possibly also filenames.
 
 # Authors
+Laura A. Mansfield 
+
 Please reach out to me if you have any issues: lauraman@stanford.edu
 
-How to cite this will be added a later date. 
+# Citations
+
+### Paper: 
+Mansfield, L. A., & Sheshadri, A. (2024). Uncertainty quantification of a machine learning subgrid-scale parameterization for atmospheric gravity waves. Journal of Advances in Modeling Earth Systems, 16, e2024MS004292. [https://doi.org/10.1029/2024MS004292](https://doi.org/10.1029/2024MS004292)
+
+### Code: 
+Mansfield, L. A. (2024). lm2612/WaveNet_UQ: WaveNet_UQv0.1.0 (v0.1.0). Zenodo. [https://doi.org/10.5281/zenodo.11200998](https://doi.org/10.5281/zenodo.11200998).
+
+### Data: 
+Mansfield, L. A. and Sheshadri, A. (2024). Data for Uncertainty Quantification of a Machine Learning Subgrid-Scale Parameterization for Atmospheric Gravity Waves. Stanford Digital Repository. Available at [https://purl.stanford.edu/zv875tm6846](https://purl.stanford.edu/zv875tm6846). [https://doi.org/10.25740/zv875tm6846](https://doi.org/10.25740/zv875tm6846).
+
+
 
 
 
